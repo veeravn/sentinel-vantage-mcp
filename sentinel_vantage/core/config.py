@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Recorded as feed provenance on every bar and score.
     feed_mode: Literal["delayed", "realtime"] = "delayed"
 
+    # SEC EDGAR (fundamentals). SEC asks for a descriptive User-Agent with contact info;
+    # set SV_SEC_USER_AGENT to "Your Name your@email" for live requests.
+    sec_user_agent: str = "sentinel-vantage-mcp/0.1 (set SV_SEC_USER_AGENT)"
+
     # MCP server (streamable-http transport)
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8080
