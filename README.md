@@ -18,9 +18,15 @@ no order-placement tool.
 
 ## Status
 
-**Phase 0 — Skeleton.** Repo, Docker stack, three independent processes, provider
-interfaces, output conventions, and a `get_status` MCP tool. No scoring yet.
-See the [delivery roadmap](docs/) and [ADR-0001](docs/adr-0001-phase0-conventions.md).
+**Phase 1 — Trend MVP (in progress).** The deterministic trend engine is built and
+tested end to end offline: feature engine → eligibility gates → `trend-v0`
+cross-sectional scoring with reason codes, risk flags, and confidence, exposed through
+the `scan_trending_stocks`, `analyze_stock`, and `get_score_history` MCP tools. A replay
+test proves determinism. **Next:** the Polygon market-data adapter, Postgres/Timescale
+schema + migrations, Redis rank cache, and worker wiring for live data.
+
+Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output
+conventions, `get_status`. See [ADR-0001](docs/adr-0001-phase0-conventions.md).
 
 ## Architecture
 
