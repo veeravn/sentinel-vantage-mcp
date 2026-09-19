@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sentinel_vantage.core.timeutils import to_utc
 from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.domain.trend.models import TrendResult
-from sentinel_vantage.providers.base import Bar
+from sentinel_vantage.providers.base import Bar, FundamentalFact
 from sentinel_vantage.storage.postgres import Database
 
 
@@ -184,6 +184,83 @@ class PostgresScoreRepository:
                 metrics=json.loads(r["metrics"]),
                 factor_z=json.loads(r["factor_z"]),
                 model_version=r["model_version"],
+            )
+            for r in rows
+        ]
+
+
+class PostgresFundamentalRepository:
+    """Point-in-time fundamentals and the security<->CIK link."""
+
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    async def set_cik(self, symbol: str, cik: str) -> None:
+        await self._db.pool.execute(
+            "UPDATE security SET cik = $2, updated_at = now() WHERE symbol = $1", symbol, cik
+        )
+
+    async def cik_for(self, symbol: str) -> str | None:
+        return await self._db.pool.fetchval("SELECT cik FROM security WHERE symbol = $1", symbol)
+
+    async def save_facts(self, facts: Sequence[FundamentalFact]) -> None:
+        if not facts:
+            return
+        await self._db.pool.executemany(
+            "INSERT INTO fundamental_fact "
+            "(cik, taxonomy, tag, unit, value, period_start, period_end, fy, fp, form, "
+            " filed_at, frame, source) "
+            "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) "
+            "ON CONFLICT (cik, taxonomy, tag, unit, "
+            "  COALESCE(period_start, DATE '1900-01-01'), period_end, filed_at) DO NOTHING",
+            [
+                (
+                    f.cik,
+                    f.taxonomy,
+                    f.tag,
+                    f.unit,
+                    f.value,
+                    f.period_start,
+                    f.period_end,
+                    f.fy,
+                    f.fp,
+                    f.form,
+                    f.filed_at,
+                    f.frame,
+                    f.source,
+                )
+                for f in facts
+            ],
+        )
+
+    async def get_facts_asof(
+        self, cik: str, tags: Sequence[str], as_of: date
+    ) -> list[FundamentalFact]:
+        rows = await self._db.pool.fetch(
+            "SELECT cik, taxonomy, tag, unit, value, period_start, period_end, fy, fp, form, "
+            "       filed_at, frame, source "
+            "FROM fundamental_fact "
+            "WHERE cik = $1 AND tag = ANY($2::text[]) AND filed_at <= $3 "
+            "ORDER BY period_end, filed_at",
+            cik,
+            list(tags),
+            as_of,
+        )
+        return [
+            FundamentalFact(
+                cik=r["cik"],
+                taxonomy=r["taxonomy"],
+                tag=r["tag"],
+                unit=r["unit"],
+                value=r["value"],
+                period_start=r["period_start"],
+                period_end=r["period_end"],
+                fy=r["fy"],
+                fp=r["fp"],
+                form=r["form"],
+                filed_at=r["filed_at"],
+                frame=r["frame"],
+                source=r["source"],
             )
             for r in rows
         ]

@@ -9,11 +9,11 @@ domain or MCP code.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.domain.trend.models import TrendResult
-from sentinel_vantage.providers.base import Bar
+from sentinel_vantage.providers.base import Bar, FundamentalFact
 
 
 class InMemoryBarRepository:
@@ -83,3 +83,28 @@ class InMemoryScoreRepository:
     ) -> list[TrendResult]:
         snaps = self._snapshots.get((symbol, horizon), [])
         return sorted((r for r in snaps if start <= r.as_of <= end), key=lambda r: r.as_of)
+
+
+class InMemoryFundamentalRepository:
+    def __init__(
+        self,
+        ciks: dict[str, str] | None = None,
+        facts: dict[str, list[FundamentalFact]] | None = None,
+    ) -> None:
+        self._ciks = ciks or {}
+        self._facts = facts or {}
+
+    def set_cik(self, symbol: str, cik: str) -> None:
+        self._ciks[symbol] = cik
+
+    def set_facts(self, cik: str, facts: list[FundamentalFact]) -> None:
+        self._facts[cik] = facts
+
+    async def cik_for(self, symbol: str) -> str | None:
+        return self._ciks.get(symbol)
+
+    async def get_facts_asof(
+        self, cik: str, tags: Sequence[str], as_of: date
+    ) -> list[FundamentalFact]:
+        wanted = set(tags)
+        return [f for f in self._facts.get(cik, []) if f.tag in wanted and f.filed_at <= as_of]
