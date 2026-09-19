@@ -9,7 +9,8 @@ free plan.
 Parsing is factored into pure functions so the WebSocket path is unit-testable without a
 live socket and the REST path with an httpx MockTransport.
 
-REST GETs back off on 429 (the free tier's 5 req/min cap) and transient 5xx. Flat Files
+REST GETs are proactively paced by a rolling-window rate limiter (``requests_per_minute``)
+to stay under the tier quota, and still back off on 429/5xx as a safety net. Flat Files
 bulk backfill for large historical loads is a later refinement.
 """
 
@@ -25,6 +26,7 @@ import httpx
 import websockets
 
 from sentinel_vantage.core.logging import get_logger
+from sentinel_vantage.core.ratelimit import RateLimiter
 from sentinel_vantage.core.timeutils import utcnow
 from sentinel_vantage.providers.base import Bar, BarEvent, MarketDataProvider, Quote, Session
 
@@ -108,6 +110,7 @@ class PolygonMarketDataProvider(MarketDataProvider):
         api_key: str,
         *,
         feed_mode: str = "delayed",
+        requests_per_minute: int = 0,
         client: httpx.AsyncClient | None = None,
         base_url: str = REST_BASE,
     ) -> None:
@@ -116,6 +119,8 @@ class PolygonMarketDataProvider(MarketDataProvider):
         self.feed = f"polygon/{feed_mode}"
         self._ws_url = WS_REALTIME if feed_mode == "realtime" else WS_DELAYED
         self._client = client or httpx.AsyncClient(base_url=base_url, timeout=30.0)
+        # Proactive pacing to stay under the tier quota (0 = unlimited, e.g. paid tiers).
+        self._limiter = RateLimiter(requests_per_minute)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -133,6 +138,7 @@ class PolygonMarketDataProvider(MarketDataProvider):
         """
         delay = 1.0
         for attempt in range(max_retries + 1):
+            await self._limiter.acquire()  # proactive pacing before each request
             resp = await self._client.get(path, params=params)
             if resp.status_code not in (429, 500, 502, 503, 504) or attempt == max_retries:
                 resp.raise_for_status()

@@ -13,9 +13,17 @@ from sentinel_vantage.providers.market_data.polygon import (
 )
 
 
-def _provider(handler) -> PolygonMarketDataProvider:
-    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://mock")
-    return PolygonMarketDataProvider("test-key", feed_mode="delayed", client=client)
+def _client(handler) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://mock")
+
+
+def _provider(handler, *, requests_per_minute: int = 0) -> PolygonMarketDataProvider:
+    return PolygonMarketDataProvider(
+        "test-key",
+        feed_mode="delayed",
+        requests_per_minute=requests_per_minute,
+        client=_client(handler),
+    )
 
 
 def test_bar_from_agg_maps_fields_and_provenance():
@@ -91,6 +99,35 @@ async def test_get_bars_retries_on_429(monkeypatch):
 
 async def _noop():
     return None
+
+
+async def test_rate_limiter_paces_requests(monkeypatch):
+    import asyncio
+
+    waits: list[float] = []
+
+    async def fake_sleep(d: float) -> None:
+        waits.append(d)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"results": []})
+
+    # 60/min bucket (capacity 60): a single request draws from the bucket, no wait.
+    provider = _provider(handler, requests_per_minute=60)
+    await provider.get_bars(
+        ["AAPL"], "1d", datetime(2026, 3, 1, tzinfo=UTC), datetime(2026, 3, 2, tzinfo=UTC)
+    )
+    assert waits == []
+    await provider.close()
+
+    # Unlimited (0) disables pacing entirely.
+    provider2 = _provider(handler, requests_per_minute=0)
+    for _ in range(10):
+        await provider2.get_latest_quotes(["AAPL"])
+    assert waits == []
+    await provider2.close()
 
 
 async def test_get_bars_rejects_unknown_timeframe():

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     polygon_api_key: str = ""
     # Recorded as feed provenance on every bar and score.
     feed_mode: Literal["delayed", "realtime"] = "delayed"
+    # Proactively pace Polygon REST calls to stay under the tier quota. 5 = free tier;
+    # set to 0 (or a large number) for paid tiers with no meaningful limit.
+    polygon_requests_per_minute: int = 5
 
     # SEC EDGAR (fundamentals). SEC asks for a descriptive User-Agent with contact info;
     # set SV_SEC_USER_AGENT to "Your Name your@email" for live requests.

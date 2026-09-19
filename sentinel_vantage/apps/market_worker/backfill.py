@@ -72,7 +72,11 @@ async def backfill(
 async def _run(settings: Settings) -> None:
     db = Database(settings.postgres_dsn)
     await db.connect()
-    provider = PolygonMarketDataProvider(settings.polygon_api_key, feed_mode=settings.feed_mode)
+    provider = PolygonMarketDataProvider(
+        settings.polygon_api_key,
+        feed_mode=settings.feed_mode,
+        requests_per_minute=settings.polygon_requests_per_minute,
+    )
     try:
         await seed_universe(db)
         symbols = [benchmark_symbol(), *active_symbols()]
