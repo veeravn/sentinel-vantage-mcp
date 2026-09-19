@@ -20,17 +20,26 @@ of stdio-only clients use a small bridge.
    docker compose -f deploy/docker-compose.yml up --build
    ```
 
-   or run just the server locally (Postgres + Redis must already be running):
+   The stack auto-runs schema migration + universe seeding (a one-shot `migrate`
+   service) before the app services start. Or run just the server locally (Postgres +
+   Redis must already be running, and `sv-migrate && sv-seed` applied once):
 
    ```bash
    source .venv/bin/activate && sv-mcp
    ```
 
-2. **Load data**, or every tool returns empty results:
+2. **Load data**, or every tool returns empty results. One command via the bootstrap
+   profile:
 
    ```bash
-   sv-migrate && sv-seed && sv-backfill      # trend data
-   sv-fundamentals && sv-events              # research + catalysts (needs SV_SEC_USER_AGENT)
+   docker compose -f deploy/docker-compose.yml --profile bootstrap up
+   ```
+
+   or by hand (in Docker or locally):
+
+   ```bash
+   sv-backfill                    # trend data
+   sv-fundamentals && sv-events   # research + catalysts (needs SV_SEC_USER_AGENT)
    ```
 
 3. **Confirm it's up** — this should return HTTP 200:

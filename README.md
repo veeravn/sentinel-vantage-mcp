@@ -55,7 +55,9 @@ Fundamentals and filings come from SEC EDGAR (no key; set `SV_SEC_USER_AGENT`).
 
 ## Usage
 
-Run the full stack (Postgres + Timescale, Redis, and the three processes):
+Run the full stack (Postgres + Timescale, Redis, and the three processes). A one-shot
+`migrate` service creates the schema and seeds the universe automatically before the app
+services start:
 
 ```bash
 cp .env.example .env          # set SV_POLYGON_API_KEY (and SV_SEC_USER_AGENT for fundamentals)
@@ -67,10 +69,19 @@ The MCP server listens on `http://localhost:8080/mcp` (streamable-http). Call th
 To wire it into a client (Claude Code, Claude Desktop, VS Code Copilot, Cursor,
 Windsurf), see [docs/CONNECTING.md](docs/CONNECTING.md).
 
-### Initialize data
+### Load data
+
+Schema + universe are created automatically on `up`. Market/fundamental/event **data**
+is not (free-tier backfill is slow). Load it once with the `bootstrap` profile:
 
 ```bash
-sv-migrate && sv-seed   # create schema (hypertables) + seed the universe
+docker compose -f deploy/docker-compose.yml --profile bootstrap up
+```
+
+That runs `sv-backfill`, `sv-fundamentals`, and `sv-events` once (best-effort;
+fundamentals/events need `SV_SEC_USER_AGENT`). Or run them by hand, in Docker or locally:
+
+```bash
 sv-backfill             # daily bars from Polygon (free tier: self-throttles)
 sv-fundamentals         # point-in-time SEC XBRL fundamentals (needs SV_SEC_USER_AGENT)
 sv-events               # SEC filings as catalyst events

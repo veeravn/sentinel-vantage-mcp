@@ -1,8 +1,14 @@
 # MVP single-host stack (design section 22.1). Kafka is intentionally omitted until
 # replay or multi-consumer needs justify it.
+#
+# On `up`, the one-shot `migrate` service creates the schema and seeds the universe
+# before the app services start. Bar/fundamental/event data stays manual (free-tier
+# backfill is slow); run it once with the bootstrap profile:
+#   docker compose -f deploy/docker-compose.yml --profile bootstrap up
 name: sentinel-vantage
 
-x-app: &app
+# Shared build/env, without lifecycle policy (used by long-running and one-shot services).
+x-app-base: &app-base
   build:
     context: ..
     dockerfile: deploy/Dockerfile
@@ -12,11 +18,17 @@ x-app: &app
     # Override localhost defaults so containers reach the compose services.
     SV_POSTGRES_DSN: postgresql://sentinel:sentinel@postgres:5432/sentinel
     SV_REDIS_URL: redis://redis:6379/0
+
+# Long-running app services: wait for storage AND the one-shot migration to finish.
+x-app: &app
+  <<: *app-base
   depends_on:
     postgres:
       condition: service_healthy
     redis:
       condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
@@ -46,6 +58,29 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # One-shot: apply migrations and seed the reference universe, then exit. App services
+  # depend on this completing successfully. Idempotent — safe to re-run on every `up`.
+  migrate:
+    <<: *app-base
+    command: ["sh", "-c", "sv-migrate && sv-seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # One-shot data load, opt-in: `--profile bootstrap`. Best-effort (each step is
+  # independent) so a missing SV_SEC_USER_AGENT doesn't block the Polygon backfill.
+  bootstrap:
+    <<: *app-base
+    profiles: ["bootstrap"]
+    command: ["sh", "-c", "sv-backfill; sv-fundamentals; sv-events"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
 
   mcp-api:
     <<: *app
