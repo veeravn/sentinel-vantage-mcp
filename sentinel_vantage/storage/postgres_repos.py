@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 
 from sentinel_vantage.core.timeutils import to_utc
 from sentinel_vantage.domain.features.models import FeatureSet
+from sentinel_vantage.domain.research.models import ResearchResult
 from sentinel_vantage.domain.trend.models import TrendResult
 from sentinel_vantage.providers.base import Bar, FundamentalFact
 from sentinel_vantage.storage.postgres import Database
@@ -261,6 +262,77 @@ class PostgresFundamentalRepository:
                 filed_at=r["filed_at"],
                 frame=r["frame"],
                 source=r["source"],
+            )
+            for r in rows
+        ]
+
+
+class PostgresResearchScoreRepository:
+    def __init__(self, db: Database, *, provider: str, feed: str) -> None:
+        self._db = db
+        self._provider = provider
+        self._feed = feed
+
+    async def save_research_scores(self, results: Sequence[ResearchResult]) -> None:  # noqa: F821
+        if not results:
+            return
+        await self._db.pool.executemany(
+            "INSERT INTO strategy_score "
+            "(symbol, strategy, ts, score, confidence, rank_percentile, factors, penalties, "
+            " positive_reasons, negative_reasons, hard_gate_failures, model_version, "
+            " provider, feed) "
+            "VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,"
+            "$12,$13,$14) "
+            "ON CONFLICT (symbol, strategy, model_version, ts) DO NOTHING",
+            [
+                (
+                    r.symbol,
+                    r.strategy,
+                    to_utc(r.as_of),
+                    r.score,
+                    r.confidence,
+                    r.rank_percentile,
+                    json.dumps(r.factors),
+                    json.dumps(r.penalties),
+                    json.dumps(r.positive_reasons),
+                    json.dumps(r.negative_reasons),
+                    json.dumps(r.hard_gate_failures),
+                    r.model_version,
+                    self._provider,
+                    self._feed,
+                )
+                for r in results
+            ],
+        )
+
+    async def get_research_history(
+        self, symbol: str, *, strategy: str, start: datetime, end: datetime
+    ) -> list[ResearchResult]:
+        rows = await self._db.pool.fetch(
+            "SELECT symbol, strategy, ts, score, confidence, rank_percentile, factors, penalties, "
+            "       positive_reasons, negative_reasons, hard_gate_failures, model_version "
+            "FROM strategy_score "
+            "WHERE symbol = $1 AND strategy = $2 AND ts BETWEEN $3 AND $4 "
+            "ORDER BY ts",
+            symbol,
+            strategy,
+            to_utc(start),
+            to_utc(end),
+        )
+        return [
+            ResearchResult(
+                symbol=r["symbol"],
+                strategy=r["strategy"],
+                as_of=r["ts"],
+                score=r["score"],
+                confidence=r["confidence"],
+                rank_percentile=r["rank_percentile"],
+                factors=json.loads(r["factors"]),
+                penalties=json.loads(r["penalties"]),
+                positive_reasons=json.loads(r["positive_reasons"]),
+                negative_reasons=json.loads(r["negative_reasons"]),
+                hard_gate_failures=json.loads(r["hard_gate_failures"]),
+                model_version=r["model_version"],
             )
             for r in rows
         ]

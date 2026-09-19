@@ -43,6 +43,13 @@ sv-backfill            # load daily history from Polygon (free tier: slow, self-
 sv-worker              # score the latest session on a cadence; publishes the rank cache
 ```
 
+**Phase 2 — Fundamentals + GARP (done).** SEC EDGAR adapter (point-in-time XBRL facts),
+fundamentals storage + normalization (revenue/EPS growth, margins, ROE, leverage, P/E,
+EV/Sales), and the `research-v1` GARP engine (hard gates → cross-sectional factor
+scoring → risk penalties → confidence), exposed through `find_research_candidates` and
+`compare_stocks`. Verified end to end on real Polygon prices + real SEC data. Load
+fundamentals with `sv-fundamentals` (needs `SV_SEC_USER_AGENT`).
+
 Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output
 conventions, `get_status`. See [ADR-0001](docs/adr-0001-phase0-conventions.md).
 

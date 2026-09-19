@@ -34,6 +34,7 @@ from sentinel_vantage.core.versioning import (
     SCHEMA_CONVENTIONS_VERSION,
     TREND_MODEL_VERSION,
 )
+from sentinel_vantage.domain.research.service import ResearchService
 from sentinel_vantage.domain.trend.service import TrendService
 
 
@@ -41,6 +42,7 @@ def build_server(
     settings: Settings | None = None,
     *,
     trend: TrendService | None = None,
+    research: ResearchService | None = None,
     resources: MCPResources | None = None,
 ) -> MCPServer:
     """Build the MCP server.
@@ -48,7 +50,7 @@ def build_server(
     - default: build and own Postgres/Redis resources (lifespan connects + closes them).
     - ``resources=``: use caller-owned, already-connected resources (lifespan is a no-op;
       the caller manages their lifecycle — used by integration tests).
-    - ``trend=``: inject an in-memory service; no external resources (unit tests).
+    - ``trend=``/``research=``: inject in-memory services; no external resources (unit tests).
     """
     settings = settings or get_settings()
 
@@ -56,12 +58,14 @@ def build_server(
     if trend is not None:
         service = trend
         rank_cache = None
+        # research stays as whatever was injected (may be None)
     else:
         if resources is None:
             resources = MCPResources.build(settings)
             owns_resources = True
         service = resources.service
         rank_cache = resources.rank_cache
+        research = research or resources.research
 
     @asynccontextmanager
     async def lifespan(_server: MCPServer) -> AsyncIterator[None]:
@@ -189,7 +193,66 @@ def build_server(
             model_version=TREND_MODEL_VERSION,
         )
 
+    if research is not None:
+        _register_research_tools(mcp, research, _envelope, _as_of)
+
     return mcp
+
+
+def _register_research_tools(mcp, research, envelope, as_of_fn):
+    from sentinel_vantage.core.versioning import RESEARCH_MODEL_VERSION
+
+    @mcp.tool()
+    async def find_research_candidates(
+        strategy: str = "GARP",
+        sector: str | None = None,
+        limit: int = 20,
+        min_confidence: float = 0.0,
+    ) -> dict[str, Any]:
+        """Rank research candidates for a strategy (e.g. GARP).
+
+        Applies the strategy's hard gates, then scores eligible names on growth,
+        quality, valuation, momentum, and balance-sheet factors with risk penalties.
+        Fundamentals are point-in-time (SEC XBRL). Returns each candidate's score,
+        confidence, factor breakdown, penalties, and reason codes, plus the names
+        excluded by hard gates.
+        """
+        rank = await research.rank(
+            strategy,
+            as_of=await as_of_fn(),
+            sector=sector,
+            limit=limit,
+            min_confidence=min_confidence,
+        )
+        return envelope(
+            {
+                "strategy": rank.strategy,
+                "universe_size": rank.universe_size,
+                "results": [r.model_dump(mode="json") for r in rank.results],
+                "ineligible": [e.model_dump(mode="json") for e in rank.ineligible],
+            },
+            model_version=RESEARCH_MODEL_VERSION,
+        )
+
+    @mcp.tool()
+    async def compare_stocks(symbols: list[str], strategy: str = "GARP") -> dict[str, Any]:
+        """Side-by-side research scoring of specific symbols under a strategy.
+
+        Scores the given symbols cross-sectionally against each other, returning factor
+        breakdowns, penalties, and reason codes so the tradeoffs are explicit rather
+        than an unsupported single verdict.
+        """
+        cmp = await research.compare(
+            [s.upper() for s in symbols], strategy=strategy, as_of=await as_of_fn()
+        )
+        return envelope(
+            {
+                "strategy": cmp.strategy,
+                "results": [r.model_dump(mode="json") for r in cmp.results],
+                "ineligible": [e.model_dump(mode="json") for e in cmp.ineligible],
+            },
+            model_version=RESEARCH_MODEL_VERSION,
+        )
 
 
 def _parse_iso(value: str | None):

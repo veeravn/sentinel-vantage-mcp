@@ -11,11 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sentinel_vantage.core.config import Settings
+from sentinel_vantage.domain.research.service import ResearchService
 from sentinel_vantage.domain.trend.service import TrendService
 from sentinel_vantage.storage.postgres import Database
 from sentinel_vantage.storage.postgres_repos import (
     PostgresBarRepository,
     PostgresFeatureRepository,
+    PostgresFundamentalRepository,
+    PostgresResearchScoreRepository,
     PostgresScoreRepository,
 )
 from sentinel_vantage.storage.rank_cache import RedisRankCache
@@ -30,6 +33,7 @@ class MCPResources:
     db: Database
     redis: RedisStore
     service: TrendService
+    research: ResearchService
     rank_cache: RedisRankCache
 
     @classmethod
@@ -37,16 +41,18 @@ class MCPResources:
         db = Database(settings.postgres_dsn)
         redis = RedisStore(settings.redis_url)
         bars = PostgresBarRepository(db, benchmark_symbol=BENCHMARK_SYMBOL)
+        provider, feed = settings.provider_name, settings.feed_label
         service = TrendService(
             bars,
-            scores=PostgresScoreRepository(
-                db, provider=settings.provider_name, feed=settings.feed_label
-            ),
-            features=PostgresFeatureRepository(
-                db, provider=settings.provider_name, feed=settings.feed_label
-            ),
+            scores=PostgresScoreRepository(db, provider=provider, feed=feed),
+            features=PostgresFeatureRepository(db, provider=provider, feed=feed),
         )
-        return cls(settings, db, redis, service, RedisRankCache(redis))
+        research = ResearchService(
+            bars,
+            PostgresFundamentalRepository(db),
+            scores=PostgresResearchScoreRepository(db, provider=provider, feed=feed),
+        )
+        return cls(settings, db, redis, service, research, RedisRankCache(redis))
 
     async def connect(self) -> None:
         await self.db.connect()

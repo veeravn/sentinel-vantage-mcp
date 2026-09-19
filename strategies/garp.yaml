@@ -1,0 +1,36 @@
+# GARP — Growth at a Reasonable Price. Version-controlled and immutable once used in a
+# persisted score snapshot: changing weights creates a new score_version rather than
+# altering the meaning of historical scores (design sections 10.4, 26).
+id: garp-v1
+name: GARP
+
+universe:
+  min_price: 3
+  min_median_dollar_volume_20d: 10000000
+
+hard_gates:
+  revenue_growth_yoy_min: 0.08
+  data_confidence_min: 0.80
+
+# Factor weights sum to 1.0. Revisions (estimate revisions) are deferred until a
+# licensed estimates source exists; its 0.15 is folded into financial_strength for now.
+weights:
+  growth: 0.25
+  quality: 0.20
+  valuation: 0.25
+  momentum: 0.15
+  financial_strength: 0.15
+
+# Penalties in score points, subtracted from the weighted factor score.
+penalties:
+  extreme_volatility: 8
+  extreme_short_term_move: 6
+  leverage: 10
+
+# Penalty trigger thresholds.
+thresholds:
+  extreme_volatility_20d: 0.05
+  extreme_short_term_move_1d: 0.15
+  leverage_debt_to_equity: 2.0
+
+score_version: research-v1.0.0

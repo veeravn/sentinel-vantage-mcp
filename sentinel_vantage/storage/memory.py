@@ -108,3 +108,16 @@ class InMemoryFundamentalRepository:
     ) -> list[FundamentalFact]:
         wanted = set(tags)
         return [f for f in self._facts.get(cik, []) if f.tag in wanted and f.filed_at <= as_of]
+
+
+class InMemoryResearchScoreRepository:
+    def __init__(self) -> None:
+        self._snapshots: dict[tuple[str, str], list] = {}
+
+    async def save_research_scores(self, results) -> None:
+        for r in results:
+            self._snapshots.setdefault((r.symbol, r.strategy), []).append(r)
+
+    async def get_research_history(self, symbol, *, strategy, start, end):
+        snaps = self._snapshots.get((symbol, strategy), [])
+        return sorted((r for r in snaps if start <= r.as_of <= end), key=lambda r: r.as_of)
