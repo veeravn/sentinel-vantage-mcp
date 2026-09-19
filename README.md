@@ -78,8 +78,11 @@ is not (free-tier backfill is slow). Load it once with the `bootstrap` profile:
 docker compose -f deploy/docker-compose.yml --profile bootstrap up
 ```
 
-That runs `sv-backfill`, `sv-fundamentals`, and `sv-events` once (best-effort;
-fundamentals/events need `SV_SEC_USER_AGENT`). Or run them by hand, in Docker or locally:
+Data persists in the `pgdata` volume across `up`/`down`, and bootstrap is **idempotent**
+— it skips when the database already has bars (set `SV_BOOTSTRAP_FORCE=1` to reload), and
+the SEC steps are best-effort (skipped without `SV_SEC_USER_AGENT`). So you can leave the
+profile on; it only does work the first time. Or run the loads by hand, in Docker or
+locally:
 
 ```bash
 sv-backfill             # daily bars from Polygon (free tier: self-throttles)
