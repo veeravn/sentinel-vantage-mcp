@@ -50,6 +50,13 @@ scoring → risk penalties → confidence), exposed through `find_research_candi
 `compare_stocks`. Verified end to end on real Polygon prices + real SEC data. Load
 fundamentals with `sv-fundamentals` (needs `SV_SEC_USER_AGENT`).
 
+**Phase 4 — Backtesting (done).** A point-in-time backtest engine
+([backtest/](sentinel_vantage/backtest)) that replays a model over a rebalance schedule
+using only data available at each `as_of`, and reports forward-return-by-score-bucket,
+rank IC, top-minus-bottom spread, hit rate, turnover, and coverage. Works for both the
+trend and research models. Run it: `sv-backtest trend` or `sv-backtest garp --horizon 60`.
+(Meaningful evaluation needs a broad, multi-sector universe — a full backfill.)
+
 Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output
 conventions, `get_status`. See [ADR-0001](docs/adr-0001-phase0-conventions.md).
 
