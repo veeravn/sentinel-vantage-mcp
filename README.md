@@ -50,6 +50,14 @@ scoring → risk penalties → confidence), exposed through `find_research_candi
 `compare_stocks`. Verified end to end on real Polygon prices + real SEC data. Load
 fundamentals with `sv-fundamentals` (needs `SV_SEC_USER_AGENT`).
 
+**Phase 3 — Catalysts (done).** SEC filings as structured events (10-K/10-Q/8-K, no
+key), a catalyst correlator that scores temporal proximity, relevance, and novelty into
+weak/moderate/strong evidence, and the `explain_move` MCP tool — it finds a symbol's
+largest recent move and attaches ranked catalyst evidence, returning correlation and a
+causal-confidence label, never a proven cause. Load events with `sv-events`. Verified
+live: NVDA's move traced to same-day 8-K/10-Q (strong); a move with no nearby filing
+correctly returns no catalyst.
+
 **Phase 4 — Backtesting (done).** A point-in-time backtest engine
 ([backtest/](sentinel_vantage/backtest)) that replays a model over a rebalance schedule
 using only data available at each `as_of`, and reports forward-return-by-score-bucket,

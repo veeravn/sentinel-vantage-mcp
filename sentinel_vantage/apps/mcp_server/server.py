@@ -34,6 +34,7 @@ from sentinel_vantage.core.versioning import (
     SCHEMA_CONVENTIONS_VERSION,
     TREND_MODEL_VERSION,
 )
+from sentinel_vantage.domain.catalysts.service import CatalystService
 from sentinel_vantage.domain.research.service import ResearchService
 from sentinel_vantage.domain.trend.service import TrendService
 
@@ -43,6 +44,7 @@ def build_server(
     *,
     trend: TrendService | None = None,
     research: ResearchService | None = None,
+    catalysts: CatalystService | None = None,
     resources: MCPResources | None = None,
 ) -> MCPServer:
     """Build the MCP server.
@@ -66,6 +68,7 @@ def build_server(
         service = resources.service
         rank_cache = resources.rank_cache
         research = research or resources.research
+        catalysts = catalysts or resources.catalysts
 
     @asynccontextmanager
     async def lifespan(_server: MCPServer) -> AsyncIterator[None]:
@@ -196,7 +199,28 @@ def build_server(
     if research is not None:
         _register_research_tools(mcp, research, _envelope, _as_of)
 
+    if catalysts is not None:
+        _register_catalyst_tools(mcp, catalysts, _envelope, _as_of)
+
     return mcp
+
+
+def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):
+    from sentinel_vantage.core.versioning import CATALYST_MODEL_VERSION
+
+    @mcp.tool()
+    async def explain_move(symbol: str, lookback_days: int = 20) -> dict[str, Any]:
+        """Explain a symbol's recent notable price move with catalyst evidence.
+
+        Finds the largest 1-day move in the lookback window, describes it (magnitude,
+        direction, abnormal volume), and attaches ranked catalyst evidence from nearby
+        events (SEC filings), each labeled weak/moderate/strong. Returns competing
+        explanations and a causal-confidence label — correlation, never a proven cause.
+        """
+        result = await catalysts.explain_move(
+            symbol.upper(), as_of=await as_of_fn(), lookback_days=lookback_days
+        )
+        return envelope(result.model_dump(mode="json"), model_version=CATALYST_MODEL_VERSION)
 
 
 def _register_research_tools(mcp, research, envelope, as_of_fn):

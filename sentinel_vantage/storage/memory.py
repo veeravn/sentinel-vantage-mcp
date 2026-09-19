@@ -121,3 +121,20 @@ class InMemoryResearchScoreRepository:
     async def get_research_history(self, symbol, *, strategy, start, end):
         snaps = self._snapshots.get((symbol, strategy), [])
         return sorted((r for r in snaps if start <= r.as_of <= end), key=lambda r: r.as_of)
+
+
+class InMemoryEventRepository:
+    def __init__(self) -> None:
+        self._events: list = []
+
+    async def save_events(self, events) -> None:
+        seen = {(e.source, e.event_id) for e in self._events}
+        for e in events:
+            if (e.source, e.event_id) not in seen:
+                self._events.append(e)
+
+    async def get_events(self, symbol, *, start, end):
+        return sorted(
+            (e for e in self._events if e.symbol == symbol and start <= e.event_time <= end),
+            key=lambda e: e.event_time,
+        )

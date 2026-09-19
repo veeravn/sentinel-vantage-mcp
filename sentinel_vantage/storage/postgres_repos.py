@@ -336,3 +336,57 @@ class PostgresResearchScoreRepository:
             )
             for r in rows
         ]
+
+
+class PostgresEventRepository:
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    async def save_events(self, events) -> None:
+        if not events:
+            return
+        await self._db.pool.executemany(
+            "INSERT INTO event (source, event_id, symbol, cik, type, event_time, title, url, "
+            " metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb) "
+            "ON CONFLICT (source, event_id) DO NOTHING",
+            [
+                (
+                    e.source,
+                    e.event_id,
+                    e.symbol,
+                    e.cik,
+                    e.type,
+                    to_utc(e.event_time),
+                    e.title,
+                    e.url,
+                    json.dumps(e.metadata),
+                )
+                for e in events
+            ],
+        )
+
+    async def get_events(self, symbol: str, *, start: datetime, end: datetime):
+        from sentinel_vantage.domain.catalysts.models import Event
+
+        rows = await self._db.pool.fetch(
+            "SELECT source, event_id, symbol, cik, type, event_time, title, url, metadata "
+            "FROM event WHERE symbol = $1 AND event_time BETWEEN $2 AND $3 "
+            "ORDER BY event_time",
+            symbol,
+            to_utc(start),
+            to_utc(end),
+        )
+        return [
+            Event(
+                source=r["source"],
+                event_id=r["event_id"],
+                symbol=r["symbol"],
+                cik=r["cik"],
+                type=r["type"],
+                event_time=r["event_time"],
+                title=r["title"],
+                url=r["url"],
+                metadata=json.loads(r["metadata"]),
+            )
+            for r in rows
+        ]

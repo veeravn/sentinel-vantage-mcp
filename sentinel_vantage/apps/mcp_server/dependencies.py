@@ -11,11 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sentinel_vantage.core.config import Settings
+from sentinel_vantage.domain.catalysts.service import CatalystService
 from sentinel_vantage.domain.research.service import ResearchService
 from sentinel_vantage.domain.trend.service import TrendService
 from sentinel_vantage.storage.postgres import Database
 from sentinel_vantage.storage.postgres_repos import (
     PostgresBarRepository,
+    PostgresEventRepository,
     PostgresFeatureRepository,
     PostgresFundamentalRepository,
     PostgresResearchScoreRepository,
@@ -34,6 +36,7 @@ class MCPResources:
     redis: RedisStore
     service: TrendService
     research: ResearchService
+    catalysts: CatalystService
     rank_cache: RedisRankCache
 
     @classmethod
@@ -52,7 +55,8 @@ class MCPResources:
             PostgresFundamentalRepository(db),
             scores=PostgresResearchScoreRepository(db, provider=provider, feed=feed),
         )
-        return cls(settings, db, redis, service, research, RedisRankCache(redis))
+        catalysts = CatalystService(bars, PostgresEventRepository(db))
+        return cls(settings, db, redis, service, research, catalysts, RedisRankCache(redis))
 
     async def connect(self) -> None:
         await self.db.connect()
