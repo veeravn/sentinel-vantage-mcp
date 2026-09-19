@@ -37,6 +37,7 @@ sv-seed = "sentinel_vantage.apps.seed:main"
 sv-backfill = "sentinel_vantage.apps.market_worker.backfill:main"
 sv-fundamentals = "sentinel_vantage.apps.market_worker.fundamentals_backfill:main"
 sv-events = "sentinel_vantage.apps.market_worker.events_backfill:main"
+sv-bootstrap = "sentinel_vantage.apps.bootstrap:main"
 sv-backtest = "sentinel_vantage.apps.backtest_cli:main"
 
 [build-system]

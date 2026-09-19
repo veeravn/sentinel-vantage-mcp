@@ -69,12 +69,13 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # One-shot data load, opt-in: `--profile bootstrap`. Best-effort (each step is
-  # independent) so a missing SV_SEC_USER_AGENT doesn't block the Polygon backfill.
+  # One-shot idempotent data load, opt-in: `--profile bootstrap`. Skips when the
+  # database already has bars (data persists in the pgdata volume); set
+  # SV_BOOTSTRAP_FORCE=1 to reload. SEC steps are best-effort / skipped without a UA.
   bootstrap:
     <<: *app-base
     profiles: ["bootstrap"]
-    command: ["sh", "-c", "sv-backfill; sv-fundamentals; sv-events"]
+    command: ["sv-bootstrap"]
     depends_on:
       postgres:
         condition: service_healthy
