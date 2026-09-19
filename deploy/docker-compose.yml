@@ -1,0 +1,65 @@
+# MVP single-host stack (design section 22.1). Kafka is intentionally omitted until
+# replay or multi-consumer needs justify it.
+name: sentinel-vantage
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  env_file:
+    - ../.env
+  environment:
+    # Override localhost defaults so containers reach the compose services.
+    SV_POSTGRES_DSN: postgresql://sentinel:sentinel@postgres:5432/sentinel
+    SV_REDIS_URL: redis://redis:6379/0
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mcp-api:
+    <<: *app
+    command: ["sv-mcp"]
+    ports:
+      - "8080:8080"
+
+  market-worker:
+    <<: *app
+    command: ["sv-worker"]
+
+  scheduler-alerts:
+    <<: *app
+    command: ["sv-scheduler"]
+
+volumes:
+  pgdata:
