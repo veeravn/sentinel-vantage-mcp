@@ -9,12 +9,13 @@ free plan.
 Parsing is factored into pure functions so the WebSocket path is unit-testable without a
 live socket and the REST path with an httpx MockTransport.
 
-Not in this adapter (deliberately, for later increments): Flat Files bulk backfill for
-large historical loads, and rate-limit backoff for the free tier's 5 req/min cap.
+REST GETs back off on 429 (the free tier's 5 req/min cap) and transient 5xx. Flat Files
+bulk backfill for large historical loads is a later refinement.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
@@ -122,6 +123,27 @@ class PolygonMarketDataProvider(MarketDataProvider):
     def _params(self, **extra: Any) -> dict[str, Any]:
         return {"apiKey": self._api_key, **extra}
 
+    async def _get(
+        self, path: str, params: dict[str, Any], *, max_retries: int = 6
+    ) -> httpx.Response:
+        """GET with backoff on 429 (free-tier 5 req/min) and transient 5xx.
+
+        Honors a ``Retry-After`` header when present; otherwise backs off
+        exponentially (1, 2, 4, ... capped at 60s).
+        """
+        delay = 1.0
+        for attempt in range(max_retries + 1):
+            resp = await self._client.get(path, params=params)
+            if resp.status_code not in (429, 500, 502, 503, 504) or attempt == max_retries:
+                resp.raise_for_status()
+                return resp
+            retry_after = resp.headers.get("Retry-After")
+            wait = float(retry_after) if retry_after and retry_after.isdigit() else delay
+            log.warning("polygon.retry", status=resp.status_code, wait=wait, path=path)
+            await asyncio.sleep(min(wait, 60.0))
+            delay = min(delay * 2, 60.0)
+        raise RuntimeError("unreachable")  # pragma: no cover
+
     async def get_bars(
         self, symbols: Sequence[str], timeframe: str, start: datetime, end: datetime
     ) -> list[Bar]:
@@ -133,10 +155,7 @@ class PolygonMarketDataProvider(MarketDataProvider):
         bars: list[Bar] = []
         for sym in symbols:
             path = f"/v2/aggs/ticker/{sym}/range/{mult}/{span}/{frm}/{to}"
-            resp = await self._client.get(
-                path, params=self._params(adjusted="true", sort="asc", limit=50000)
-            )
-            resp.raise_for_status()
+            resp = await self._get(path, self._params(adjusted="true", sort="asc", limit=50000))
             payload = resp.json()
             for agg in payload.get("results") or []:
                 bars.append(bar_from_agg(sym, agg, timeframe=timeframe, feed=self.feed))
@@ -145,11 +164,10 @@ class PolygonMarketDataProvider(MarketDataProvider):
     async def get_latest_quotes(self, symbols: Sequence[str]) -> list[Quote]:
         quotes: list[Quote] = []
         for sym in symbols:
-            resp = await self._client.get(
+            resp = await self._get(
                 f"/v3/quotes/{sym}",
-                params=self._params(limit=1, order="desc", sort="timestamp"),
+                self._params(limit=1, order="desc", sort="timestamp"),
             )
-            resp.raise_for_status()
             results = resp.json().get("results") or []
             if not results:
                 continue

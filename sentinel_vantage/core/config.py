@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8080
 
+    # Worker
+    scoring_interval_seconds: int = 60
+    backfill_days: int = 220  # calendar days (~150 trading days) pulled on backfill
+    trend_horizon: str = "1d"
+
     @property
     def feed_label(self) -> str:
         """Human-readable feed provenance stamped onto outputs."""

@@ -65,6 +65,34 @@ async def test_get_bars_parses_aggregates_and_sends_api_key():
     await provider.close()
 
 
+async def test_get_bars_retries_on_429(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "sleep", lambda *_: _noop())
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] < 3:  # two 429s, then success
+            return httpx.Response(429, headers={"Retry-After": "0"}, json={})
+        return httpx.Response(
+            200,
+            json={"results": [{"t": 1_700_000_000_000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]},
+        )
+
+    provider = _provider(handler)
+    bars = await provider.get_bars(
+        ["AAPL"], "1d", datetime(2026, 3, 1, tzinfo=UTC), datetime(2026, 3, 2, tzinfo=UTC)
+    )
+    assert len(bars) == 1
+    assert calls["n"] == 3  # retried twice before succeeding
+    await provider.close()
+
+
+async def _noop():
+    return None
+
+
 async def test_get_bars_rejects_unknown_timeframe():
     provider = _provider(lambda r: httpx.Response(200, json={}))
     import pytest

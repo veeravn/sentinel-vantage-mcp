@@ -24,8 +24,12 @@ scoring with reason codes, risk flags, and confidence, exposed through the
 `scan_trending_stocks`, `analyze_stock`, and `get_score_history` MCP tools. A replay
 test proves determinism. The Polygon market-data adapter and the persistence layer
 (Timescale schema + migrations, Postgres/Redis repositories, universe seed) are built
-and verified against real Timescale + Redis in CI. **Next:** worker wiring — backfill
-via Polygon, then ingest → features → score on a cadence, writing snapshots.
+and verified against real Timescale + Redis in CI. The worker wiring is complete:
+`sv-backfill` loads history from Polygon (with 429 backoff for the free tier), and the
+market worker scores the latest session on a cadence, persisting feature + score
+snapshots and publishing the Redis rank cache. Verified end to end on live Polygon
+data. **Next (Phase 2):** SEC/XBRL fundamentals and the first research strategy (GARP);
+also wiring the MCP tools to read the Postgres/Redis path.
 
 Bring up the stack and initialize the database:
 
@@ -33,6 +37,8 @@ Bring up the stack and initialize the database:
 cp .env.example .env   # set SV_POLYGON_API_KEY
 docker compose -f deploy/docker-compose.yml up -d postgres redis
 sv-migrate && sv-seed  # create schema (hypertables) + seed the universe
+sv-backfill            # load daily history from Polygon (free tier: slow, self-throttles)
+sv-worker              # score the latest session on a cadence; publishes the rank cache
 ```
 
 Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output

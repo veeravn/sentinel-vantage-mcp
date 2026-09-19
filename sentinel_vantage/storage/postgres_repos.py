@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from sentinel_vantage.core.timeutils import to_utc
+from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.domain.trend.models import TrendResult
 from sentinel_vantage.providers.base import Bar
 from sentinel_vantage.storage.postgres import Database
@@ -83,6 +84,42 @@ class PostgresBarRepository:
             as_of.date(),
         )
         return row is not None
+
+    async def latest_bar_ts(self, *, timeframe: str = "1d") -> datetime | None:
+        """Timestamp of the most recent stored bar (the session to score as-of)."""
+        return await self._db.pool.fetchval(
+            "SELECT max(ts) FROM market_bar WHERE timeframe = $1", timeframe
+        )
+
+
+class PostgresFeatureRepository:
+    def __init__(self, db: Database, *, provider: str, feed: str) -> None:
+        self._db = db
+        self._provider = provider
+        self._feed = feed
+
+    async def save_feature_snapshots(
+        self, features: Sequence[FeatureSet], *, feature_set_version: str
+    ) -> None:
+        if not features:
+            return
+        await self._db.pool.executemany(
+            "INSERT INTO feature_snapshot "
+            "(symbol, ts, feature_set_version, features, provider, feed) "
+            "VALUES ($1, $2, $3, $4::jsonb, $5, $6) "
+            "ON CONFLICT (symbol, feature_set_version, ts) DO NOTHING",
+            [
+                (
+                    fs.symbol,
+                    to_utc(fs.as_of),
+                    feature_set_version,
+                    fs.model_dump_json(),
+                    self._provider,
+                    self._feed,
+                )
+                for fs in features
+            ],
+        )
 
 
 class PostgresScoreRepository:

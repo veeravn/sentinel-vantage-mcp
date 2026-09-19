@@ -33,6 +33,7 @@ sv-worker = "sentinel_vantage.apps.market_worker.__main__:main"
 sv-scheduler = "sentinel_vantage.apps.scheduler.__main__:main"
 sv-migrate = "sentinel_vantage.storage.migrate:main"
 sv-seed = "sentinel_vantage.apps.seed:main"
+sv-backfill = "sentinel_vantage.apps.market_worker.backfill:main"
 
 [build-system]
 requires = ["hatchling"]

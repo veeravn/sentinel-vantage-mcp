@@ -1,8 +1,9 @@
 """Market worker lifecycle.
 
-Phase 0: connect to storage, log a heartbeat, and shut down cleanly on signal. The
-structure (async run loop, graceful shutdown, storage wiring) is what Phase 1 hangs
-the ingestion and scoring pipeline on.
+The always-on monitoring path: on a cadence it scores the latest stored session and
+publishes ranks — independent of any MCP client. Backfill (sv-backfill) loads history;
+this worker turns that history into scores. Live minute-stream ingestion is a later
+refinement; the daily-horizon MVP scores as-of the most recent stored bar.
 """
 
 from __future__ import annotations
@@ -10,15 +11,21 @@ from __future__ import annotations
 import asyncio
 import signal
 
+from sentinel_vantage.apps.market_worker.scoring import run_scoring_cycle
 from sentinel_vantage.core.config import Settings
 from sentinel_vantage.core.health import check_health
 from sentinel_vantage.core.logging import get_logger
+from sentinel_vantage.domain.trend.service import TrendService
 from sentinel_vantage.storage.postgres import Database
+from sentinel_vantage.storage.postgres_repos import (
+    PostgresBarRepository,
+    PostgresFeatureRepository,
+    PostgresScoreRepository,
+)
+from sentinel_vantage.storage.rank_cache import RedisRankCache
 from sentinel_vantage.storage.redis_store import RedisStore
 
 log = get_logger("market_worker")
-
-HEARTBEAT_SECONDS = 30
 
 
 class MarketWorker:
@@ -36,12 +43,36 @@ class MarketWorker:
         await self.redis.connect()
         health = await check_health(self.settings, db=self.db, redis=self.redis)
         log.info("market_worker.started", feed=self.settings.feed_label, health=health.status.value)
+
+        bars = PostgresBarRepository(self.db, benchmark_symbol="SPY")
+        service = TrendService(
+            bars,
+            scores=PostgresScoreRepository(
+                self.db, provider=self.settings.provider_name, feed=self.settings.feed_label
+            ),
+            features=PostgresFeatureRepository(
+                self.db, provider=self.settings.provider_name, feed=self.settings.feed_label
+            ),
+        )
+        rank_cache = RedisRankCache(self.redis)
+
         try:
             while not self._stop.is_set():
-                # Phase 1: pull bars -> update features -> recompute trend scores here.
-                log.info("market_worker.heartbeat")
                 try:
-                    await asyncio.wait_for(self._stop.wait(), timeout=HEARTBEAT_SECONDS)
+                    as_of = await bars.latest_bar_ts(timeframe="1d")
+                    if as_of is None:
+                        log.warning("market_worker.no_bars", hint="run sv-backfill first")
+                    else:
+                        await run_scoring_cycle(
+                            service, rank_cache, horizon=self.settings.trend_horizon, as_of=as_of
+                        )
+                except Exception as exc:  # noqa: BLE001 - a bad cycle must not kill the worker
+                    log.error("market_worker.cycle_failed", error=str(exc))
+
+                try:
+                    await asyncio.wait_for(
+                        self._stop.wait(), timeout=self.settings.scoring_interval_seconds
+                    )
                 except TimeoutError:
                     continue
         finally:

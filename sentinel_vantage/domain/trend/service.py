@@ -13,8 +13,10 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from sentinel_vantage.core.logging import get_logger
+from sentinel_vantage.core.versioning import FEATURE_SET_VERSION
 from sentinel_vantage.domain.features.engine import compute_features
 from sentinel_vantage.domain.features.models import FeatureSet
+from sentinel_vantage.domain.features.ports import FeatureRepository
 from sentinel_vantage.domain.trend.gates import DEFAULT_GATES, TrendGateConfig, evaluate_gates
 from sentinel_vantage.domain.trend.models import Eligibility, TrendResult
 from sentinel_vantage.domain.trend.ports import BarRepository, ScoreRepository
@@ -53,11 +55,13 @@ class TrendService:
         bars: BarRepository,
         *,
         scores: ScoreRepository | None = None,
+        features: FeatureRepository | None = None,
         gate_config: TrendGateConfig = DEFAULT_GATES,
         scoring_config: TrendScoringConfig = DEFAULT_SCORING,
     ) -> None:
         self.bars = bars
         self.scores = scores
+        self.features = features
         self.gate_config = gate_config
         self.scoring_config = scoring_config
 
@@ -104,8 +108,14 @@ class TrendService:
         eligible, ineligible = await self._eligible_features(symbols, as_of)
         results = score_universe(eligible, horizon=horizon, as_of=as_of, config=self.scoring_config)
 
-        if persist and self.scores is not None:
-            await self.scores.save_trend_scores(results)
+        if persist:
+            # Persist feature inputs first so every stored score is reconstructable.
+            if self.features is not None:
+                await self.features.save_feature_snapshots(
+                    list(eligible.values()), feature_set_version=FEATURE_SET_VERSION
+                )
+            if self.scores is not None:
+                await self.scores.save_trend_scores(results)
 
         shown = [r for r in results if r.confidence >= min_confidence][:limit]
         log.info(

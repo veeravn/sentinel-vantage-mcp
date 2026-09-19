@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 
+from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.domain.trend.models import TrendResult
 from sentinel_vantage.providers.base import Bar
 
@@ -51,6 +52,21 @@ class InMemoryBarRepository:
 
     async def is_active(self, symbol: str, as_of: datetime) -> bool:
         return symbol not in self._inactive
+
+    async def latest_bar_ts(self, *, timeframe: str = "1d") -> datetime | None:
+        all_ts = [b.ts for bars in self._histories.values() for b in bars]
+        return max(all_ts) if all_ts else None
+
+
+class InMemoryFeatureRepository:
+    def __init__(self) -> None:
+        self.saved: list[tuple[str, FeatureSet]] = []
+
+    async def save_feature_snapshots(
+        self, features: Sequence[FeatureSet], *, feature_set_version: str
+    ) -> None:
+        for fs in features:
+            self.saved.append((feature_set_version, fs))
 
 
 class InMemoryScoreRepository:
