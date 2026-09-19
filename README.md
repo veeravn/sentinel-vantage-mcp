@@ -27,9 +27,11 @@ test proves determinism. The Polygon market-data adapter and the persistence lay
 and verified against real Timescale + Redis in CI. The worker wiring is complete:
 `sv-backfill` loads history from Polygon (with 429 backoff for the free tier), and the
 market worker scores the latest session on a cadence, persisting feature + score
-snapshots and publishing the Redis rank cache. Verified end to end on live Polygon
-data. **Next (Phase 2):** SEC/XBRL fundamentals and the first research strategy (GARP);
-also wiring the MCP tools to read the Postgres/Redis path.
+snapshots and publishing the Redis rank cache. The MCP tools read that same
+Postgres/Redis state — `scan_trending_stocks` serves the worker's Redis rank cache when
+warm and falls back to an on-demand Postgres recompute when cold. Verified end to end on
+live Polygon data, including the MCP server over HTTP. **Next (Phase 2):** SEC/XBRL
+fundamentals and the first research strategy (GARP).
 
 Bring up the stack and initialize the database:
 

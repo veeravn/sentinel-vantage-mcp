@@ -1,18 +1,57 @@
 """Wiring for the MCP server's domain dependencies.
 
-Phase 1 defaults to in-memory repositories so the server runs and its tools are
-exercisable without a live database. When the Postgres/Redis and Polygon
-implementations land, only this factory changes — the tools and domain code do not.
+The server reads the same Postgres/Redis state the worker writes. ``MCPResources`` owns
+the Database + RedisStore lifecycle (connected by the server's lifespan) and builds a
+Postgres-backed TrendService plus the Redis rank cache. Tests inject an in-memory
+service instead, so they need neither.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sentinel_vantage.core.config import Settings
 from sentinel_vantage.domain.trend.service import TrendService
-from sentinel_vantage.storage.memory import InMemoryBarRepository, InMemoryScoreRepository
+from sentinel_vantage.storage.postgres import Database
+from sentinel_vantage.storage.postgres_repos import (
+    PostgresBarRepository,
+    PostgresFeatureRepository,
+    PostgresScoreRepository,
+)
+from sentinel_vantage.storage.rank_cache import RedisRankCache
+from sentinel_vantage.storage.redis_store import RedisStore
+
+BENCHMARK_SYMBOL = "SPY"
 
 
-def build_trend_service(settings: Settings) -> TrendService:
-    # TODO(phase-1): swap for PostgresBarRepository + RedisScoreCache once migrations
-    # and the Polygon ingestion path are in place.
-    return TrendService(InMemoryBarRepository(), scores=InMemoryScoreRepository())
+@dataclass
+class MCPResources:
+    settings: Settings
+    db: Database
+    redis: RedisStore
+    service: TrendService
+    rank_cache: RedisRankCache
+
+    @classmethod
+    def build(cls, settings: Settings) -> MCPResources:
+        db = Database(settings.postgres_dsn)
+        redis = RedisStore(settings.redis_url)
+        bars = PostgresBarRepository(db, benchmark_symbol=BENCHMARK_SYMBOL)
+        service = TrendService(
+            bars,
+            scores=PostgresScoreRepository(
+                db, provider=settings.provider_name, feed=settings.feed_label
+            ),
+            features=PostgresFeatureRepository(
+                db, provider=settings.provider_name, feed=settings.feed_label
+            ),
+        )
+        return cls(settings, db, redis, service, RedisRankCache(redis))
+
+    async def connect(self) -> None:
+        await self.db.connect()
+        await self.redis.connect()
+
+    async def close(self) -> None:
+        await self.redis.close()
+        await self.db.close()

@@ -32,6 +32,8 @@ class BarRepository(Protocol):
 
     async def is_active(self, symbol: str, as_of: datetime) -> bool: ...
 
+    async def latest_bar_ts(self, *, timeframe: str = "1d") -> datetime | None: ...
+
 
 @runtime_checkable
 class ScoreRepository(Protocol):
