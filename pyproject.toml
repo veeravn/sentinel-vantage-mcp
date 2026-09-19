@@ -31,6 +31,8 @@ dev = [
 sv-mcp = "sentinel_vantage.apps.mcp_server.__main__:main"
 sv-worker = "sentinel_vantage.apps.market_worker.__main__:main"
 sv-scheduler = "sentinel_vantage.apps.scheduler.__main__:main"
+sv-migrate = "sentinel_vantage.storage.migrate:main"
+sv-seed = "sentinel_vantage.apps.seed:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,6 +40,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sentinel_vantage"]
+artifacts = ["*.sql"]  # bundle migration files into the wheel
 
 [tool.ruff]
 line-length = 100

@@ -19,11 +19,21 @@ no order-placement tool.
 ## Status
 
 **Phase 1 — Trend MVP (in progress).** The deterministic trend engine is built and
-tested end to end offline: feature engine → eligibility gates → `trend-v0`
-cross-sectional scoring with reason codes, risk flags, and confidence, exposed through
-the `scan_trending_stocks`, `analyze_stock`, and `get_score_history` MCP tools. A replay
-test proves determinism. **Next:** the Polygon market-data adapter, Postgres/Timescale
-schema + migrations, Redis rank cache, and worker wiring for live data.
+tested end to end: feature engine → eligibility gates → `trend-v0` cross-sectional
+scoring with reason codes, risk flags, and confidence, exposed through the
+`scan_trending_stocks`, `analyze_stock`, and `get_score_history` MCP tools. A replay
+test proves determinism. The Polygon market-data adapter and the persistence layer
+(Timescale schema + migrations, Postgres/Redis repositories, universe seed) are built
+and verified against real Timescale + Redis in CI. **Next:** worker wiring — backfill
+via Polygon, then ingest → features → score on a cadence, writing snapshots.
+
+Bring up the stack and initialize the database:
+
+```bash
+cp .env.example .env   # set SV_POLYGON_API_KEY
+docker compose -f deploy/docker-compose.yml up -d postgres redis
+sv-migrate && sv-seed  # create schema (hypertables) + seed the universe
+```
 
 Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output
 conventions, `get_status`. See [ADR-0001](docs/adr-0001-phase0-conventions.md).
