@@ -16,64 +16,7 @@ The MCP layer is a **query interface** downstream of an always-on monitoring eng
 monitoring runs whether or not a client is connected. v1 is **research-only**: there is
 no order-placement tool.
 
-## Status
-
-**Phase 1 — Trend MVP (in progress).** The deterministic trend engine is built and
-tested end to end: feature engine → eligibility gates → `trend-v0` cross-sectional
-scoring with reason codes, risk flags, and confidence, exposed through the
-`scan_trending_stocks`, `analyze_stock`, and `get_score_history` MCP tools. A replay
-test proves determinism. The Polygon market-data adapter and the persistence layer
-(Timescale schema + migrations, Postgres/Redis repositories, universe seed) are built
-and verified against real Timescale + Redis in CI. The worker wiring is complete:
-`sv-backfill` loads history from Polygon (with 429 backoff for the free tier), and the
-market worker scores the latest session on a cadence, persisting feature + score
-snapshots and publishing the Redis rank cache. The MCP tools read that same
-Postgres/Redis state — `scan_trending_stocks` serves the worker's Redis rank cache when
-warm and falls back to an on-demand Postgres recompute when cold. Verified end to end on
-live Polygon data, including the MCP server over HTTP. **Next (Phase 2):** SEC/XBRL
-fundamentals and the first research strategy (GARP).
-
-Bring up the stack and initialize the database:
-
-```bash
-cp .env.example .env   # set SV_POLYGON_API_KEY
-docker compose -f deploy/docker-compose.yml up -d postgres redis
-sv-migrate && sv-seed  # create schema (hypertables) + seed the universe
-sv-backfill            # load daily history from Polygon (free tier: slow, self-throttles)
-sv-worker              # score the latest session on a cadence; publishes the rank cache
-```
-
-**Phase 2 — Fundamentals + GARP (done).** SEC EDGAR adapter (point-in-time XBRL facts),
-fundamentals storage + normalization (revenue/EPS growth, margins, ROE, leverage, P/E,
-EV/Sales), and the `research-v1` GARP engine (hard gates → cross-sectional factor
-scoring → risk penalties → confidence), exposed through `find_research_candidates` and
-`compare_stocks`. Verified end to end on real Polygon prices + real SEC data. Load
-fundamentals with `sv-fundamentals` (needs `SV_SEC_USER_AGENT`).
-
-**Phase 5 — Watchlists & Alerts (done).** A structured rule DSL (validated, not LLM
-text), an alert engine with per-(rule,symbol) cooldown dedup that persists evaluated
-values for audit, watchlist diffs, and scheduled briefings — all evaluated by the
-always-on `scheduler` process independent of any MCP client. MCP tools:
-`create_watchlist`, `create_alert_rule`, `list_alert_events`, `get_watchlist_changes`,
-`get_market_brief`. Rules read like `["trend_score >= 85", "volume_ratio >= 2.0"]`.
-
-**Phase 3 — Catalysts (done).** SEC filings as structured events (10-K/10-Q/8-K, no
-key), a catalyst correlator that scores temporal proximity, relevance, and novelty into
-weak/moderate/strong evidence, and the `explain_move` MCP tool — it finds a symbol's
-largest recent move and attaches ranked catalyst evidence, returning correlation and a
-causal-confidence label, never a proven cause. Load events with `sv-events`. Verified
-live: NVDA's move traced to same-day 8-K/10-Q (strong); a move with no nearby filing
-correctly returns no catalyst.
-
-**Phase 4 — Backtesting (done).** A point-in-time backtest engine
-([backtest/](sentinel_vantage/backtest)) that replays a model over a rebalance schedule
-using only data available at each `as_of`, and reports forward-return-by-score-bucket,
-rank IC, top-minus-bottom spread, hit rate, turnover, and coverage. Works for both the
-trend and research models. Run it: `sv-backtest trend` or `sv-backtest garp --horizon 60`.
-(Meaningful evaluation needs a broad, multi-sector universe — a full backfill.)
-
-Phase 0 (done): skeleton, Docker stack, three processes, provider interfaces, output
-conventions, `get_status`. See [ADR-0001](docs/adr-0001-phase0-conventions.md).
+Delivery status and the phase-by-phase roadmap live in [ROADMAP.md](ROADMAP.md).
 
 ## Architecture
 
@@ -88,24 +31,65 @@ Three independent processes (design section 28):
 Supporting layers: `providers/` (swappable data adapters), `storage/` (Postgres +
 Redis), `domain/` (business logic), `core/` (config, versioning, provenance, health).
 
+```
+sentinel_vantage/
+  core/        config, versioning, envelope (provenance), time, logging, health
+  providers/   market_data/ fundamentals/ news/  (swappable adapters)
+  storage/     postgres, redis
+  domain/      market/ features/ trend/ research/ catalysts/ alerts/
+  apps/        mcp_server/ market_worker/ scheduler/
+  backtest/    point-in-time backtesting
+strategies/    version-controlled strategy configs
+deploy/        Dockerfile, docker-compose.yml, postgres init
+docs/          ADRs and design notes
+tests/
+```
+
 ## Data feed
 
 Polygon.io. Every tier has 100% consolidated market coverage, so the trend features are
 honest even on the free tier. Develop on **Basic ($0)**; run the MVP on **Starter
 ($29/mo)** for unlimited calls, WebSockets, Flat Files backfill, and 5y history. Feed
 provenance (`polygon/delayed` vs `polygon/realtime`) is stamped on every bar and score.
+Fundamentals and filings come from SEC EDGAR (no key; set `SV_SEC_USER_AGENT`).
 
-## Quickstart
+## Usage
+
+Run the full stack (Postgres + Timescale, Redis, and the three processes):
 
 ```bash
-cp .env.example .env          # then set SV_POLYGON_API_KEY
-
-# Run the full stack (Postgres + Timescale, Redis, and the three processes)
+cp .env.example .env          # set SV_POLYGON_API_KEY (and SV_SEC_USER_AGENT for fundamentals)
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
 The MCP server listens on `http://localhost:8080` (streamable-http). Call the
 `get_status` tool to verify Postgres/Redis health, the active feed, and schema version.
+
+### Initialize data
+
+```bash
+sv-migrate && sv-seed   # create schema (hypertables) + seed the universe
+sv-backfill             # daily bars from Polygon (free tier: self-throttles)
+sv-fundamentals         # point-in-time SEC XBRL fundamentals (needs SV_SEC_USER_AGENT)
+sv-events               # SEC filings as catalyst events
+```
+
+### Command-line tools
+
+| Command | Purpose |
+|---|---|
+| `sv-mcp` | Run the MCP server (streamable-http). |
+| `sv-worker` | Always-on worker: score the latest session, publish the rank cache. |
+| `sv-scheduler` | Evaluate alert rules and briefings on a cadence. |
+| `sv-migrate` / `sv-seed` | Apply migrations / seed the reference universe. |
+| `sv-backfill` / `sv-fundamentals` / `sv-events` | Load bars / fundamentals / filing events. |
+| `sv-backtest` | Point-in-time backtest (`sv-backtest trend`, `sv-backtest garp --horizon 60`). |
+
+### MCP tools
+
+`get_status`, `scan_trending_stocks`, `analyze_stock`, `get_score_history`,
+`find_research_candidates`, `compare_stocks`, `explain_move`, `create_watchlist`,
+`create_alert_rule`, `list_alert_events`, `get_watchlist_changes`, `get_market_brief`.
 
 ### Local development
 
@@ -114,28 +98,11 @@ python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 ruff check . && ruff format --check .
-pytest -q
+pytest -q                      # unit tests run without a live database
+SV_RUN_DB_TESTS=1 pytest -q     # also run the Postgres/Redis integration tests
 ```
 
-> The tests run without a live database — health pings degrade to `down` gracefully.
+## License
 
-## Layout
-
-```
-sentinel_vantage/
-  core/        config, versioning, envelope (provenance), time, logging, health
-  providers/   market_data/ fundamentals/ news/  (swappable adapters)
-  storage/     postgres, redis
-  domain/      market/ features/ trend/ research/ catalysts/ alerts/
-  apps/        mcp_server/ market_worker/ scheduler/
-strategies/    version-controlled strategy configs (Phase 2)
-backtest/      point-in-time backtesting (Phase 4)
-deploy/        Dockerfile, docker-compose.yml, postgres init
-docs/          ADRs and design notes
-tests/
-```
-
-## Roadmap
-
-Phase 0 Skeleton · Phase 1 Trend MVP · Phase 2 Fundamentals + first strategy (GARP) ·
-Phase 3 Catalysts · Phase 4 Backtesting · Phase 5 Watchlists/Alerts · Phase 6 Hardening.
+Proprietary — all rights reserved. Not licensed for redistribution or use without the
+copyright holder's permission.
