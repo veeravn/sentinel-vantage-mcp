@@ -50,6 +50,13 @@ scoring → risk penalties → confidence), exposed through `find_research_candi
 `compare_stocks`. Verified end to end on real Polygon prices + real SEC data. Load
 fundamentals with `sv-fundamentals` (needs `SV_SEC_USER_AGENT`).
 
+**Phase 5 — Watchlists & Alerts (done).** A structured rule DSL (validated, not LLM
+text), an alert engine with per-(rule,symbol) cooldown dedup that persists evaluated
+values for audit, watchlist diffs, and scheduled briefings — all evaluated by the
+always-on `scheduler` process independent of any MCP client. MCP tools:
+`create_watchlist`, `create_alert_rule`, `list_alert_events`, `get_watchlist_changes`,
+`get_market_brief`. Rules read like `["trend_score >= 85", "volume_ratio >= 2.0"]`.
+
 **Phase 3 — Catalysts (done).** SEC filings as structured events (10-K/10-Q/8-K, no
 key), a catalyst correlator that scores temporal proximity, relevance, and novelty into
 weak/moderate/strong evidence, and the `explain_move` MCP tool — it finds a symbol's

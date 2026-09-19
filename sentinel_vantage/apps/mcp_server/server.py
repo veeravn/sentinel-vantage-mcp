@@ -202,7 +202,98 @@ def build_server(
     if catalysts is not None:
         _register_catalyst_tools(mcp, catalysts, _envelope, _as_of)
 
+    if resources is not None:
+        _register_alert_tools(mcp, resources, _envelope, _as_of)
+
     return mcp
+
+
+def _register_alert_tools(mcp, resources, envelope, as_of_fn):
+    import uuid
+
+    from sentinel_vantage.core.timeutils import utcnow
+    from sentinel_vantage.domain.alerts.models import AlertRule, RuleDSL, Watchlist
+    from sentinel_vantage.domain.alerts.parse import parse_conditions
+
+    @mcp.tool()
+    async def create_watchlist(name: str, symbols: list[str]) -> dict[str, Any]:
+        """Create a named watchlist of symbols; returns it with a generated id."""
+        wl = Watchlist(
+            watchlist_id=uuid.uuid4().hex,
+            name=name,
+            symbols=[s.upper() for s in symbols],
+            created_at=utcnow(),
+        )
+        await resources.watchlists.save_watchlist(wl)
+        return envelope(wl.model_dump(mode="json"), model_version=NO_MODEL)
+
+    @mcp.tool()
+    async def create_alert_rule(
+        all_conditions: list[str],
+        any_conditions: list[str] | None = None,
+        symbols: list[str] | None = None,
+        watchlist_id: str | None = None,
+        cooldown_hours: float = 4.0,
+        severity: str = "info",
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        """Store a structured alert rule for asynchronous evaluation by the scheduler.
+
+        Conditions are strings like "trend_score >= 85", "volume_ratio >= 2.0",
+        "research_score:GARP >= 75". All of ``all_conditions`` must hold and at least one
+        of ``any_conditions`` (if given). Scope by explicit ``symbols`` or a
+        ``watchlist_id``. Evaluation runs independently of any MCP connection.
+        """
+        rule = AlertRule(
+            rule_id=uuid.uuid4().hex,
+            name=name,
+            symbols=[s.upper() for s in (symbols or [])],
+            watchlist_id=watchlist_id,
+            rule=RuleDSL(
+                all=parse_conditions(all_conditions),
+                any=parse_conditions(any_conditions or []),
+                cooldown_hours=cooldown_hours,
+            ),
+            severity=severity,  # type: ignore[arg-type]
+            created_at=utcnow(),
+        )
+        await resources.alert_rules.save_rule(rule)
+        return envelope(rule.model_dump(mode="json"), model_version=NO_MODEL)
+
+    @mcp.tool()
+    async def list_alert_events(
+        since: str | None = None,
+        severity: str | None = None,
+        symbols: list[str] | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Retrieve triggered alert events (default: the last 24 hours)."""
+        since_dt = _parse_iso(since) or (utcnow() - timedelta(days=1))
+        events = await resources.alert_events.list_events(
+            since=since_dt,
+            severity=severity,
+            symbols=[s.upper() for s in symbols] if symbols else None,
+            limit=limit,
+        )
+        return envelope(
+            {"events": [e.model_dump(mode="json") for e in events]}, model_version=NO_MODEL
+        )
+
+    @mcp.tool()
+    async def get_watchlist_changes(watchlist_id: str, since: str | None = None) -> dict[str, Any]:
+        """Summarize material trend-score and event changes for a watchlist since a time."""
+        as_of = await as_of_fn()
+        since_dt = _parse_iso(since) or (as_of - timedelta(days=1))
+        changes = await resources.watchlist_service.changes(
+            watchlist_id, since=since_dt, as_of=as_of
+        )
+        return envelope(changes.model_dump(mode="json"), model_version=NO_MODEL)
+
+    @mcp.tool()
+    async def get_market_brief(strategy: str = "GARP", top: int = 5) -> dict[str, Any]:
+        """Compact briefing: top trending names, top research candidates, recent alerts."""
+        brief = await resources.briefing.brief(as_of=await as_of_fn(), strategy=strategy, top=top)
+        return envelope(brief.model_dump(mode="json"), model_version=NO_MODEL)
 
 
 def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):

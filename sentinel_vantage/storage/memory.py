@@ -138,3 +138,57 @@ class InMemoryEventRepository:
             (e for e in self._events if e.symbol == symbol and start <= e.event_time <= end),
             key=lambda e: e.event_time,
         )
+
+
+class InMemoryWatchlistRepository:
+    def __init__(self) -> None:
+        self._wl: dict[str, object] = {}
+
+    async def save_watchlist(self, wl) -> None:
+        self._wl[wl.watchlist_id] = wl
+
+    async def get_watchlist(self, watchlist_id: str):
+        return self._wl.get(watchlist_id)
+
+
+class InMemoryAlertRuleRepository:
+    def __init__(self) -> None:
+        self._rules: dict[str, object] = {}
+
+    async def save_rule(self, rule) -> None:
+        self._rules[rule.rule_id] = rule
+
+    async def list_active_rules(self):
+        return [r for r in self._rules.values() if r.active]
+
+
+class InMemoryAlertEventRepository:
+    def __init__(self) -> None:
+        self._events: list = []
+
+    async def save_event(self, event) -> None:
+        if not any(e.event_id == event.event_id for e in self._events):
+            self._events.append(event)
+
+    async def recent_for(self, rule_id, symbol, *, since):
+        return sorted(
+            (
+                e
+                for e in self._events
+                if e.rule_id == rule_id and e.symbol == symbol and e.created_at >= since
+            ),
+            key=lambda e: e.created_at,
+            reverse=True,
+        )
+
+    async def list_events(self, *, since, symbols=None, severity=None, limit=100):
+        syms = set(symbols) if symbols else None
+        out = [
+            e
+            for e in self._events
+            if e.created_at >= since
+            and (syms is None or e.symbol in syms)
+            and (severity is None or e.severity == severity)
+        ]
+        out.sort(key=lambda e: e.created_at, reverse=True)
+        return out[:limit]

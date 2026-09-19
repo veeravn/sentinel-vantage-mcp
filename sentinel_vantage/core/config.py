@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     backfill_days: int = 220  # calendar days (~150 trading days) pulled on backfill
     trend_horizon: str = "1d"
 
+    # Scheduler
+    alert_interval_seconds: int = 300
+
     @property
     def feed_label(self) -> str:
         """Human-readable feed provenance stamped onto outputs."""
