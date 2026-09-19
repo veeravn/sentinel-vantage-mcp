@@ -62,8 +62,10 @@ cp .env.example .env          # set SV_POLYGON_API_KEY (and SV_SEC_USER_AGENT fo
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
-The MCP server listens on `http://localhost:8080` (streamable-http). Call the
+The MCP server listens on `http://localhost:8080/mcp` (streamable-http). Call the
 `get_status` tool to verify Postgres/Redis health, the active feed, and schema version.
+To wire it into a client (Claude Code, Claude Desktop, VS Code Copilot, Cursor,
+Windsurf), see [docs/CONNECTING.md](docs/CONNECTING.md).
 
 ### Initialize data
 
