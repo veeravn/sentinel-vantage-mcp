@@ -82,11 +82,7 @@ def test_extract_facts_reads_dei_taxonomy():
         "facts": {
             "dei": {
                 "EntityCommonStockSharesOutstanding": {
-                    "units": {
-                        "shares": [
-                            {"end": "2023-12-31", "val": 100, "filed": "2024-02-01"}
-                        ]
-                    }
+                    "units": {"shares": [{"end": "2023-12-31", "val": 100, "filed": "2024-02-01"}]}
                 }
             }
         }
