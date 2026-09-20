@@ -90,8 +90,10 @@ In progress:
 
 ## Backlog / quick wins
 
-- Additional strategy profiles (Growth / Quality / Value / Momentum) — the engine
-  already supports them; each is a YAML file.
+- ✅ Additional strategy profiles — Growth, Quality, Value, and Momentum ship as
+  version-controlled YAML in [strategies/](strategies), auto-discovered by the loader
+  and reweighting the same five factors as GARP (`find_research_candidates` /
+  `compare_stocks` accept them by id or name).
 - Research worker cycle: persist `strategy_score` on a cadence + a Redis cache.
 - Notification delivery for alerts (email / Slack / push).
 - XBRL tag-coverage refinement (some issuers resolve fewer metrics).

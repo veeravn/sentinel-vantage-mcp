@@ -1,0 +1,39 @@
+# Momentum — reward trailing price strength, with growth and quality as secondary
+# confirmation. Version-controlled and immutable once used in a persisted score
+# snapshot: changing weights creates a new score_version rather than altering the
+# meaning of historical scores (design sections 10.4, 26).
+id: momentum-v1
+name: Momentum
+
+universe:
+  min_price: 3
+  min_median_dollar_volume_20d: 10000000
+
+hard_gates:
+  # No revenue-growth gate — momentum is a price thesis, not a fundamentals one.
+  data_confidence_min: 0.80
+
+# Factor weights sum to 1.0. Momentum dominates; growth and quality confirm that the
+# move is backed by a real business, not just a squeeze.
+weights:
+  momentum: 0.50
+  growth: 0.20
+  quality: 0.15
+  valuation: 0.10
+  financial_strength: 0.05
+
+# Penalties in score points, subtracted from the weighted factor score. The
+# extreme_short_term_move penalty is kept — a one-day spike is a blow-off-top risk,
+# not the sustained trend momentum is meant to capture.
+penalties:
+  extreme_volatility: 5
+  extreme_short_term_move: 7
+  leverage: 8
+
+# Penalty trigger thresholds.
+thresholds:
+  extreme_volatility_20d: 0.05
+  extreme_short_term_move_1d: 0.15
+  leverage_debt_to_equity: 2.0
+
+score_version: momentum-v1.0.0

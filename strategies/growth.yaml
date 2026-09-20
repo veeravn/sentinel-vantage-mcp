@@ -1,0 +1,38 @@
+# Growth — reward fast top-/bottom-line growth and price confirmation, tolerate a
+# richer multiple. Version-controlled and immutable once used in a persisted score
+# snapshot: changing weights creates a new score_version rather than altering the
+# meaning of historical scores (design sections 10.4, 26).
+id: growth-v1
+name: Growth
+
+universe:
+  min_price: 3
+  min_median_dollar_volume_20d: 10000000
+
+hard_gates:
+  # Growth is the thesis, so gate harder on it than GARP does.
+  revenue_growth_yoy_min: 0.15
+  data_confidence_min: 0.80
+
+# Factor weights sum to 1.0. Growth and momentum lead; valuation is de-emphasized
+# because growth names are expected to trade at a premium.
+weights:
+  growth: 0.40
+  momentum: 0.25
+  quality: 0.15
+  financial_strength: 0.10
+  valuation: 0.10
+
+# Penalties in score points, subtracted from the weighted factor score.
+penalties:
+  extreme_volatility: 6
+  extreme_short_term_move: 5
+  leverage: 8
+
+# Penalty trigger thresholds.
+thresholds:
+  extreme_volatility_20d: 0.05
+  extreme_short_term_move_1d: 0.15
+  leverage_debt_to_equity: 2.0
+
+score_version: growth-v1.0.0

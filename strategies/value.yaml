@@ -1,0 +1,39 @@
+# Value — reward a cheap multiple, backed by enough quality and balance-sheet
+# strength to screen out value traps. No growth gate: slow growers are in scope.
+# Version-controlled and immutable once used in a persisted score snapshot: changing
+# weights creates a new score_version rather than altering the meaning of historical
+# scores (design sections 10.4, 26).
+id: value-v1
+name: Value
+
+universe:
+  min_price: 3
+  min_median_dollar_volume_20d: 10000000
+
+hard_gates:
+  # No revenue-growth gate — value explicitly includes low-growth names.
+  data_confidence_min: 0.80
+
+# Factor weights sum to 1.0. Valuation leads; quality and financial strength guard
+# against value traps. Momentum is a minor confirmation weight.
+weights:
+  valuation: 0.45
+  quality: 0.20
+  financial_strength: 0.20
+  growth: 0.10
+  momentum: 0.05
+
+# Penalties in score points, subtracted from the weighted factor score. Leverage is
+# weighted heavily — cheap-and-levered is the classic value trap.
+penalties:
+  extreme_volatility: 8
+  extreme_short_term_move: 6
+  leverage: 12
+
+# Penalty trigger thresholds.
+thresholds:
+  extreme_volatility_20d: 0.05
+  extreme_short_term_move_1d: 0.15
+  leverage_debt_to_equity: 2.0
+
+score_version: value-v1.0.0
