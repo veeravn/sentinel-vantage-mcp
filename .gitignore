@@ -12,6 +12,8 @@ venv/
 .env
 .env.local
 *.local
+# local MCP client config — contains the bearer token
+.mcp.json
 
 # Tooling
 .pytest_cache/
