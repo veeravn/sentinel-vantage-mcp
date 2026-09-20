@@ -87,11 +87,13 @@ services:
     <<: *app
     command: ["sv-mcp"]
     ports:
-      # Bind the MCP port to a chosen interface. Default 0.0.0.0 (all) for local dev.
-      # For plain HTTP over Tailscale, set SV_MCP_BIND to the box's tailnet IP (100.x)
-      # so it's reachable only over the tailnet — no Caddy/TLS needed. Set 127.0.0.1 if
-      # only a same-host reverse proxy (Caddy) should reach it.
-      - "${SV_MCP_BIND:-0.0.0.0}:8080:8080"
+      # Publish the MCP port as <bind ip>:<host port>:8080.
+      #  - SV_MCP_BIND: interface (default 0.0.0.0). Set to the box's tailnet IP (100.x)
+      #    for plain HTTP over Tailscale — reachable only over the tailnet, no TLS needed.
+      #  - SV_MCP_PUBLISH_PORT: host port (default 8080). Set to 80 for a port-less
+      #    http://sentinel-vantage.ai/mcp — but port 80 must be free on that interface
+      #    first (AdGuard holds 0.0.0.0:80, so rebind AdGuard to the LAN IP).
+      - "${SV_MCP_BIND:-0.0.0.0}:${SV_MCP_PUBLISH_PORT:-8080}:8080"
 
   market-worker:
     <<: *app
