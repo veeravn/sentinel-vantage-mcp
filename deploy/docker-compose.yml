@@ -97,5 +97,24 @@ services:
     <<: *app
     command: ["sv-scheduler"]
 
+  # Reverse proxy (opt-in: `--profile edge`). HTTPS on 443 only — port 80 is left to
+  # AdGuard on this host. Fronts sentinel-vantage.ai and proxies to the MCP server.
+  caddy:
+    image: caddy:2
+    profiles: ["edge"]
+    depends_on:
+      mcp-api:
+        condition: service_started
+    ports:
+      - "443:443"
+      - "443:443/udp"   # HTTP/3 (optional)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # persists the internal CA + issued certs across restarts
+      - caddy_config:/config
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
