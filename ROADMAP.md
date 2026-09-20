@@ -96,3 +96,9 @@ In progress:
 - Notification delivery for alerts (email / Slack / push).
 - XBRL tag-coverage refinement (some issuers resolve fewer metrics).
 - Full-universe backfill so the backtest has real breadth (fast on a paid Polygon tier).
+- Granular trend confidence: factor in bar freshness and per-feature quality so it varies
+  meaningfully instead of saturating at 1.0 for full-history large caps (today it's a
+  coarse completeness × history × benchmark product; it is data-quality, not a calibrated
+  probability).
+- Scheduled daily backfill so the scored "as of" tracks the latest session automatically
+  (today `as_of` only advances when `sv-backfill` is re-run; no live minute-stream ingest).
