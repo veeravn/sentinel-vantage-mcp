@@ -8,24 +8,54 @@ comparability the design calls out (section 8.2).
 
 from __future__ import annotations
 
-# Priority-ordered candidate tags per logical metric (first with data wins).
+# Priority-ordered candidate tags per logical metric (first with data wins). Lists are
+# ordered most-standard first; alternates cover issuers that tag the same economic
+# quantity under a different concept (ASC 606 revenue variants, combined basic/diluted
+# EPS, NCI-inclusive equity, capital-lease-inclusive debt).
 REVENUE = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "RevenueFromContractWithCustomerIncludingAssessedTax",
     "Revenues",
     "SalesRevenueNet",
+    "SalesRevenueGoodsNet",
+    "SalesRevenueServicesNet",
 ]
-NET_INCOME = ["NetIncomeLoss"]
-EPS_DILUTED = ["EarningsPerShareDiluted"]
+# Cost of revenue — used to derive gross profit when GrossProfit is not reported.
+COST_OF_REVENUE = [
+    "CostOfRevenue",
+    "CostOfGoodsAndServicesSold",
+    "CostOfGoodsSold",
+    "CostOfServices",
+]
+NET_INCOME = ["NetIncomeLoss", "ProfitLoss"]
+EPS_DILUTED = [
+    "EarningsPerShareDiluted",
+    "EarningsPerShareBasicAndDiluted",
+    "IncomeLossFromContinuingOperationsPerDilutedShare",
+]
 GROSS_PROFIT = ["GrossProfit"]
 OPERATING_INCOME = ["OperatingIncomeLoss"]
 ASSETS = ["Assets"]
-EQUITY = ["StockholdersEquity"]
-LONG_TERM_DEBT = ["LongTermDebtNoncurrent", "LongTermDebt"]
+EQUITY = [
+    "StockholdersEquity",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+]
+LONG_TERM_DEBT = [
+    "LongTermDebtNoncurrent",
+    "LongTermDebt",
+    "LongTermDebtAndCapitalLeaseObligations",
+]
 CASH = [
     "CashAndCashEquivalentsAtCarryingValue",
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
 ]
-SHARES_OUTSTANDING = ["CommonStockSharesOutstanding"]
+# CommonStockSharesOutstanding (us-gaap) is often absent; the dei cover-page concept
+# EntityCommonStockSharesOutstanding is almost always present. The SEC adapter scans
+# both taxonomies, so listing the dei tag here is enough for it to be ingested.
+SHARES_OUTSTANDING = [
+    "CommonStockSharesOutstanding",
+    "EntityCommonStockSharesOutstanding",
+]
 OPERATING_CASH_FLOW = ["NetCashProvidedByUsedInOperatingActivities"]
 CAPEX = ["PaymentsToAcquirePropertyPlantAndEquipment"]
 
@@ -33,6 +63,7 @@ CAPEX = ["PaymentsToAcquirePropertyPlantAndEquipment"]
 ALL_TAGS: list[str] = sorted(
     {
         *REVENUE,
+        *COST_OF_REVENUE,
         *NET_INCOME,
         *EPS_DILUTED,
         *GROSS_PROFIT,

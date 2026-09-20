@@ -15,7 +15,7 @@ Fact parsing is a pure function so it is unit-testable without network access.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date
 from typing import Any
 
@@ -35,37 +35,48 @@ def _to_date(value: str | None) -> date | None:
 
 
 def extract_facts(
-    companyfacts: dict[str, Any], cik: str, tags: Iterable[str], *, taxonomy: str = "us-gaap"
+    companyfacts: dict[str, Any],
+    cik: str,
+    tags: Iterable[str],
+    *,
+    taxonomies: Sequence[str] = ("us-gaap", "dei"),
 ) -> list[FundamentalFact]:
-    """Pure: pull the requested concept tags out of a companyfacts document."""
+    """Pure: pull the requested concept tags out of a companyfacts document.
+
+    Scans each taxonomy in ``taxonomies`` (us-gaap statement concepts plus the dei
+    cover-page namespace, which carries EntityCommonStockSharesOutstanding). A wanted
+    tag is matched wherever it appears; our tag set has no us-gaap/dei name collisions.
+    """
     wanted = set(tags)
-    facts_root = (companyfacts.get("facts") or {}).get(taxonomy) or {}
+    all_facts = companyfacts.get("facts") or {}
     out: list[FundamentalFact] = []
-    for tag, concept in facts_root.items():
-        if tag not in wanted:
-            continue
-        for unit, entries in (concept.get("units") or {}).items():
-            for e in entries:
-                end = _to_date(e.get("end"))
-                filed = _to_date(e.get("filed"))
-                if end is None or filed is None or e.get("val") is None:
-                    continue
-                out.append(
-                    FundamentalFact(
-                        cik=cik,
-                        taxonomy=taxonomy,
-                        tag=tag,
-                        unit=unit,
-                        value=float(e["val"]),
-                        period_start=_to_date(e.get("start")),
-                        period_end=end,
-                        fy=e.get("fy"),
-                        fp=e.get("fp"),
-                        form=e.get("form"),
-                        filed_at=filed,
-                        frame=e.get("frame"),
+    for taxonomy in taxonomies:
+        facts_root = all_facts.get(taxonomy) or {}
+        for tag, concept in facts_root.items():
+            if tag not in wanted:
+                continue
+            for unit, entries in (concept.get("units") or {}).items():
+                for e in entries:
+                    end = _to_date(e.get("end"))
+                    filed = _to_date(e.get("filed"))
+                    if end is None or filed is None or e.get("val") is None:
+                        continue
+                    out.append(
+                        FundamentalFact(
+                            cik=cik,
+                            taxonomy=taxonomy,
+                            tag=tag,
+                            unit=unit,
+                            value=float(e["val"]),
+                            period_start=_to_date(e.get("start")),
+                            period_end=end,
+                            fy=e.get("fy"),
+                            fp=e.get("fp"),
+                            form=e.get("form"),
+                            filed_at=filed,
+                            frame=e.get("frame"),
+                        )
                     )
-                )
     return out
 
 

@@ -26,8 +26,16 @@ from sentinel_vantage.providers.base import FundamentalFact
 _KEY_METRICS = ("revenue", "revenue_growth_yoy", "eps", "gross_margin", "roe")
 
 
-def _annual_series(facts: Sequence[FundamentalFact], candidate_tags: Sequence[str]) -> list[float]:
-    """Full-year values, oldest→newest, for the first candidate tag that has data."""
+def _annual_by_period(
+    facts: Sequence[FundamentalFact], candidate_tags: Sequence[str]
+) -> dict[date, float]:
+    """Full-year value keyed by fiscal period end, for the first candidate tag with data.
+
+    Latest-filed version of each period wins (so an as-of-visible restatement replaces
+    the original). Returning the period map — not just a series — lets callers align
+    numerator and denominator (e.g. gross profit to its own revenue year) instead of
+    blindly pairing each metric's latest value.
+    """
     for tag in candidate_tags:
         by_period: dict[date, tuple[date, float]] = {}
         for f in facts:
@@ -37,8 +45,14 @@ def _annual_series(facts: Sequence[FundamentalFact], candidate_tags: Sequence[st
             if prev is None or f.filed_at > prev[0]:
                 by_period[f.period_end] = (f.filed_at, f.value)
         if by_period:
-            return [v for _, v in (by_period[p] for p in sorted(by_period))]
-    return []
+            return {p: v for p, (_, v) in by_period.items()}
+    return {}
+
+
+def _annual_series(facts: Sequence[FundamentalFact], candidate_tags: Sequence[str]) -> list[float]:
+    """Full-year values, oldest→newest, for the first candidate tag that has data."""
+    by_period = _annual_by_period(facts, candidate_tags)
+    return [by_period[p] for p in sorted(by_period)]
 
 
 def _latest_instant(
@@ -78,19 +92,38 @@ def compute_fundamentals(
     price: float | None,
     as_of: datetime,
 ) -> Fundamentals:
-    revenue_series = _annual_series(facts, T.REVENUE)
-    eps_series = _annual_series(facts, T.EPS_DILUTED)
-    gross_series = _annual_series(facts, T.GROSS_PROFIT)
-    op_series = _annual_series(facts, T.OPERATING_INCOME)
-    ni_series = _annual_series(facts, T.NET_INCOME)
+    rev_by_period = _annual_by_period(facts, T.REVENUE)
+    rev_periods = sorted(rev_by_period)
+    latest = rev_periods[-1] if rev_periods else None
 
-    revenue = revenue_series[-1] if revenue_series else None
-    revenue_prior = revenue_series[-2] if len(revenue_series) >= 2 else None
+    revenue = rev_by_period[latest] if latest is not None else None
+    revenue_prior = rev_by_period[rev_periods[-2]] if len(rev_periods) >= 2 else None
+
+    eps_series = _annual_series(facts, T.EPS_DILUTED)
     eps = eps_series[-1] if eps_series else None
     eps_prior = eps_series[-2] if len(eps_series) >= 2 else None
-    net_income = ni_series[-1] if ni_series else None
-    gross_profit = gross_series[-1] if gross_series else None
-    operating_income = op_series[-1] if op_series else None
+
+    # Align margin/return numerators to the latest revenue year so ratios pair the same
+    # period; fall back to each metric's own latest value if that year is absent.
+    def _aligned(by_period: dict[date, float]) -> float | None:
+        if latest is not None and latest in by_period:
+            return by_period[latest]
+        return by_period[max(by_period)] if by_period else None
+
+    gross_by_period = _annual_by_period(facts, T.GROSS_PROFIT)
+    op_by_period = _annual_by_period(facts, T.OPERATING_INCOME)
+    ni_by_period = _annual_by_period(facts, T.NET_INCOME)
+
+    net_income = _aligned(ni_by_period)
+    operating_income = _aligned(op_by_period)
+    gross_profit = _aligned(gross_by_period)
+    # Derive gross profit when it is not reported directly: revenue - cost of revenue,
+    # for the same fiscal year as revenue (never mixing periods).
+    if gross_profit is None and revenue is not None and latest is not None:
+        cogs_by_period = _annual_by_period(facts, T.COST_OF_REVENUE)
+        cogs = cogs_by_period.get(latest)
+        if cogs is not None:
+            gross_profit = revenue - cogs
 
     equity = _latest_instant(facts, T.EQUITY)
     debt = _latest_instant(facts, T.LONG_TERM_DEBT)

@@ -96,7 +96,11 @@ In progress:
   `compare_stocks` accept them by id or name).
 - Research worker cycle: persist `strategy_score` on a cadence + a Redis cache.
 - Notification delivery for alerts (email / Slack / push).
-- XBRL tag-coverage refinement (some issuers resolve fewer metrics).
+- ✅ XBRL tag-coverage refinement — expanded us-gaap candidate lists (ASC 606 revenue
+  variants, combined basic/diluted EPS, NCI-inclusive equity, capital-lease debt); the
+  SEC adapter now also reads the `dei` taxonomy so `EntityCommonStockSharesOutstanding`
+  backs up the frequently-absent us-gaap share count; and gross profit is derived from
+  revenue − cost of revenue (period-aligned) when `GrossProfit` isn't tagged.
 - Full-universe backfill so the backtest has real breadth (fast on a paid Polygon tier).
 - Granular trend confidence: factor in bar freshness and per-feature quality so it varies
   meaningfully instead of saturating at 1.0 for full-history large caps (today it's a

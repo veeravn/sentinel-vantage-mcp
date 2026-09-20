@@ -76,6 +76,28 @@ def test_extract_facts_filters_tags_and_skips_malformed():
     assert latest.source == "SEC-XBRL"
 
 
+def test_extract_facts_reads_dei_taxonomy():
+    # dei cover-page concepts (e.g. share count) must be reachable, not just us-gaap.
+    companyfacts = {
+        "facts": {
+            "dei": {
+                "EntityCommonStockSharesOutstanding": {
+                    "units": {
+                        "shares": [
+                            {"end": "2023-12-31", "val": 100, "filed": "2024-02-01"}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    facts = extract_facts(companyfacts, "C", ["EntityCommonStockSharesOutstanding"])
+    assert len(facts) == 1
+    assert facts[0].tag == "EntityCommonStockSharesOutstanding"
+    assert facts[0].taxonomy == "dei"
+    assert facts[0].value == 100
+
+
 async def test_get_cik_map():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(

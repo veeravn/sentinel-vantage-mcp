@@ -94,3 +94,48 @@ def test_restatement_latest_filed_wins():
     ]
     f = compute_fundamentals("ABC", "C", facts, price=None, as_of=datetime(2025, 1, 1, tzinfo=UTC))
     assert f.revenue == 1050.0  # latest-filed version of the period
+
+
+def test_gross_margin_derived_from_cost_of_revenue():
+    # No GrossProfit tag, but revenue and cost of revenue for the same year -> derived.
+    facts = [
+        _annual("Revenues", 1000.0, 2022),
+        _annual("Revenues", 1200.0, 2023),
+        _annual("CostOfRevenue", 700.0, 2023),  # gross profit = 1200 - 700 = 500
+    ]
+    f = compute_fundamentals("ABC", "C", facts, price=None, as_of=datetime(2024, 6, 1, tzinfo=UTC))
+    assert round(f.gross_margin, 4) == round(500 / 1200, 4)
+    assert "gross_margin" not in f.missing
+
+
+def test_gross_profit_not_derived_across_mismatched_years():
+    # Cost of revenue only for a non-latest year must not pair with latest revenue.
+    facts = [
+        _annual("Revenues", 1000.0, 2022),
+        _annual("Revenues", 1200.0, 2023),
+        _annual("CostOfRevenue", 700.0, 2022),  # wrong year — not the latest revenue
+    ]
+    f = compute_fundamentals("ABC", "C", facts, price=None, as_of=datetime(2024, 6, 1, tzinfo=UTC))
+    assert f.gross_margin is None
+
+
+def test_shares_dei_fallback_feeds_market_cap():
+    # us-gaap CommonStockSharesOutstanding absent; dei cover-page concept present.
+    facts = [
+        _annual("Revenues", 1200.0, 2023),
+        _instant("EntityCommonStockSharesOutstanding", 100.0, 2023, unit="shares"),
+    ]
+    f = compute_fundamentals("ABC", "C", facts, price=50.0, as_of=datetime(2024, 6, 1, tzinfo=UTC))
+    assert f.shares_outstanding == 100.0
+    assert f.market_cap == 5000.0
+
+
+def test_alternate_revenue_tag_priority():
+    # ASC 606 concept used instead of Revenues -> resolved via priority list.
+    facts = [
+        _annual("RevenueFromContractWithCustomerExcludingAssessedTax", 400.0, 2022),
+        _annual("RevenueFromContractWithCustomerExcludingAssessedTax", 500.0, 2023),
+    ]
+    f = compute_fundamentals("ABC", "C", facts, price=None, as_of=datetime(2024, 6, 1, tzinfo=UTC))
+    assert f.revenue == 500.0
+    assert round(f.revenue_growth_yoy, 4) == 0.25
