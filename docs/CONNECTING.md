@@ -57,6 +57,25 @@ of stdio-only clients use a small bridge.
 > only). Even with a token, keep it bound to `localhost` or your tailnet/VPN and don't
 > expose `:8080` publicly. Provider secrets stay server-side and are never returned.
 
+## Remote over Tailscale (two options)
+
+Reaching the server from your other devices, privately:
+
+- **Plain HTTP (simplest — no certs).** Traffic over Tailscale is already encrypted, so
+  you don't need TLS. Point AdGuard split DNS at the box's tailnet IP, bind the MCP port
+  to that IP, and connect directly:
+  ```bash
+  SV_MCP_BIND=100.x.x.x docker compose -f deploy/docker-compose.yml up -d
+  ```
+  Endpoint: `http://sentinel-vantage.ai:8080/mcp` (reachable only over the tailnet).
+  Keep `SV_MCP_AUTH_TOKEN` set — the token still protects it.
+- **HTTPS via Caddy (clean URL, needs cert trust).** Start the `edge` profile:
+  ```bash
+  docker compose -f deploy/docker-compose.yml --profile edge up -d
+  ```
+  Endpoint: `https://sentinel-vantage.ai/mcp`. Caddy uses an internal CA, so trust its
+  root on clients (or use the plain-HTTP option above).
+
 ## Authentication
 
 If `SV_MCP_AUTH_TOKEN` is set on the server, pass it as a bearer header from each client:

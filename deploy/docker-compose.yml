@@ -87,7 +87,11 @@ services:
     <<: *app
     command: ["sv-mcp"]
     ports:
-      - "8080:8080"
+      # Bind the MCP port to a chosen interface. Default 0.0.0.0 (all) for local dev.
+      # For plain HTTP over Tailscale, set SV_MCP_BIND to the box's tailnet IP (100.x)
+      # so it's reachable only over the tailnet — no Caddy/TLS needed. Set 127.0.0.1 if
+      # only a same-host reverse proxy (Caddy) should reach it.
+      - "${SV_MCP_BIND:-0.0.0.0}:8080:8080"
 
   market-worker:
     <<: *app
