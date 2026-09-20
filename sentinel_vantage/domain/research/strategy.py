@@ -13,8 +13,10 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field
 
-# strategies/ lives at the repo root, three levels up from this file.
-STRATEGIES_DIR = Path(__file__).resolve().parents[3] / "strategies"
+# Strategy YAMLs are packaged inside sentinel_vantage/ (like the SQL migrations) so they
+# ship in the wheel/Docker image, not just in a source checkout. From this file
+# (sentinel_vantage/domain/research/strategy.py) the package root is two levels up.
+STRATEGIES_DIR = Path(__file__).resolve().parents[2] / "strategies"
 
 
 class UniverseGates(BaseModel):

@@ -39,7 +39,7 @@ sentinel_vantage/
   domain/      market/ features/ trend/ research/ catalysts/ alerts/
   apps/        mcp_server/ market_worker/ scheduler/
   backtest/    point-in-time backtesting
-strategies/    version-controlled strategy configs
+  strategies/  version-controlled strategy configs (packaged with the app)
 deploy/        Dockerfile, docker-compose.yml, postgres init
 docs/          ADRs and design notes
 tests/

@@ -46,7 +46,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sentinel_vantage"]
-artifacts = ["*.sql"]  # bundle migration files into the wheel
+artifacts = ["*.sql", "*.yaml"]  # bundle migrations + strategy configs into the wheel
 
 [tool.ruff]
 line-length = 100
