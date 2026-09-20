@@ -51,9 +51,27 @@ of stdio-only clients use a small bridge.
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
    ```
 
-> **Security note:** there is **no authentication yet** (that's Phase 6). Keep the server
-> bound to `localhost` or behind your own gateway/VPN. Do not expose `:8080` to the public
-> internet. Provider secrets stay server-side in `.env` and are never returned by tools.
+> **Security note:** the server supports **bearer-token auth** — set `SV_MCP_AUTH_TOKEN`
+> (e.g. `openssl rand -hex 32`) and every client must send `Authorization: Bearer <token>`
+> (see [Authentication](#authentication) below). It is **keyless when unset** (local dev
+> only). Even with a token, keep it bound to `localhost` or your tailnet/VPN and don't
+> expose `:8080` publicly. Provider secrets stay server-side and are never returned.
+
+## Authentication
+
+If `SV_MCP_AUTH_TOKEN` is set on the server, pass it as a bearer header from each client:
+
+- **Claude Code:**
+  ```bash
+  claude mcp add --transport http sentinel-vantage http://localhost:8080/mcp \
+    --header "Authorization: Bearer <token>"
+  ```
+- **VS Code / Cursor / Windsurf:** add a `headers` map to the server entry, e.g.
+  `"headers": { "Authorization": "Bearer <token>" }`.
+- **Claude Desktop (mcp-remote):** append `--header "Authorization: Bearer <token>"` to
+  the `args`.
+
+Leave the header off entirely when the server runs keyless (no `SV_MCP_AUTH_TOKEN`).
 
 ---
 

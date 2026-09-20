@@ -1,0 +1,35 @@
+# Caddy reverse proxy for the Sentinel Vantage MCP server (MCP only).
+#
+# Fronts the MCP server at sentinel-vantage.ai and proxies to the app on :8080. Pair with
+# AdGuard split DNS (sentinel-vantage.ai -> the box's tailnet IP) and, on the app side,
+# SV_MCP_AUTH_TOKEN for bearer auth. Caddy passes the Authorization header through
+# unchanged, so the app still enforces the token.
+#
+# TLS: this is a private (split-DNS) domain, so public ACME (HTTP-01) can't validate it.
+# Options, cheapest first:
+#   1. `tls internal`  — Caddy's own CA (default below). Trust Caddy's root cert on your
+#      client devices, then https://sentinel-vantage.ai works with no warnings.
+#   2. Public cert via DNS-01 — only if you actually OWN sentinel-vantage.ai at a
+#      registrar with an API. Replace `tls internal` with a DNS-provider block and build
+#      Caddy with that DNS plugin.
+#   3. Plain HTTP — change the site label to `http://sentinel-vantage.ai` and drop the
+#      tls line (fine over Tailscale, which already encrypts).
+
+sentinel-vantage.ai {
+	tls internal
+
+	reverse_proxy mcp-api:8080 {
+		# Stream Server-Sent Events immediately (MCP streamable-http); don't buffer.
+		flush_interval -1
+	}
+}
+
+# --- Running Caddy ---
+# On the same Docker network as the stack (so `mcp-api:8080` resolves), e.g.:
+#   docker run -d --name caddy --network sentinel-vantage_default \
+#     -p 80:80 -p 443:443 \
+#     -v $PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro \
+#     -v caddy_data:/data caddy:2
+#
+# If Caddy runs on the host instead of Docker, change `mcp-api:8080` to `127.0.0.1:8080`
+# and publish the MCP port to localhost only (ports: ["127.0.0.1:8080:8080"] in compose).

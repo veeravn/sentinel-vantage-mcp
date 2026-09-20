@@ -74,10 +74,19 @@ client. Rules read like `["trend_score >= 85", "volume_ratio >= 2.0"]`.
 Tools: `create_watchlist`, `create_alert_rule`, `list_alert_events`,
 `get_watchlist_changes`, `get_market_brief`.
 
-## Phase 6 — Hardening ⬜
+## Phase 6 — Hardening 🚧
 
-Auth, per-client quotas/rate limits, multi-provider failover, full observability and
-metrics, and scale tests.
+In progress:
+
+- ✅ **Bearer-token auth** on the MCP endpoint (`SV_MCP_AUTH_TOKEN`) — a pure-ASGI
+  middleware that 401s missing/wrong tokens without touching the streaming response.
+  Opt-in: keyless when unset (local dev). Reverse-proxy config in
+  [deploy/Caddyfile](deploy/Caddyfile).
+- ⬜ Per-client quotas / rate limits.
+- ⬜ Multi-provider failover.
+- ⬜ Full observability and metrics.
+- ⬜ Chaos / scale tests.
+- ⬜ Secrets in a secret manager; least-privilege DB roles.
 
 ## Backlog / quick wins
 

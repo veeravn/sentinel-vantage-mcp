@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # MCP server (streamable-http transport)
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8080
+    # Bearer token required on requests to the MCP endpoint. Empty = auth disabled
+    # (local dev only). Set SV_MCP_AUTH_TOKEN before exposing the server on a network.
+    mcp_auth_token: str = ""
 
     # Worker
     scoring_interval_seconds: int = 60
