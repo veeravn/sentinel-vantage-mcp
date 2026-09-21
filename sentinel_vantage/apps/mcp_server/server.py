@@ -260,6 +260,70 @@ def _register_alert_tools(mcp, resources, envelope, as_of_fn):
         brief = await resources.briefing.brief(as_of=await as_of_fn(), strategy=strategy, top=top)
         return envelope(brief.model_dump(mode="json"), model_version=NO_MODEL)
 
+    @mcp.tool()
+    async def list_alert_rules() -> dict[str, Any]:
+        """List the active alert rules the scheduler is evaluating."""
+        rules = await resources.alert_rules.list_active_rules()
+        return envelope(
+            {"rules": [r.model_dump(mode="json") for r in rules]}, model_version=NO_MODEL
+        )
+
+    @mcp.tool()
+    async def get_watchlist(watchlist_id: str) -> dict[str, Any]:
+        """Fetch a watchlist by id (``found: false`` when it does not exist)."""
+        wl = await resources.watchlists.get_watchlist(watchlist_id)
+        return envelope(
+            {"found": wl is not None, "watchlist": wl.model_dump(mode="json") if wl else None},
+            model_version=NO_MODEL,
+        )
+
+    @mcp.tool()
+    async def update_watchlist(
+        watchlist_id: str,
+        add: list[str] | None = None,
+        remove: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Add and/or remove symbols on an existing watchlist; returns the updated list.
+        Removals are applied before additions; symbols are upper-cased and de-duplicated."""
+        wl = await resources.watchlists.get_watchlist(watchlist_id)
+        if wl is None:
+            return envelope({"found": False, "watchlist": None}, model_version=NO_MODEL)
+        remove_set = {s.upper() for s in (remove or [])}
+        symbols = [s for s in wl.symbols if s not in remove_set]
+        for s in add or []:
+            su = s.upper()
+            if su not in symbols:
+                symbols.append(su)
+        wl.symbols = symbols
+        await resources.watchlists.save_watchlist(wl)
+        return envelope(
+            {"found": True, "watchlist": wl.model_dump(mode="json")}, model_version=NO_MODEL
+        )
+
+    @mcp.tool()
+    async def delete_watchlist(watchlist_id: str) -> dict[str, Any]:
+        """Permanently delete a watchlist by id."""
+        deleted = await resources.watchlists.delete_watchlist(watchlist_id)
+        return envelope({"watchlist_id": watchlist_id, "deleted": deleted}, model_version=NO_MODEL)
+
+    @mcp.tool()
+    async def disable_alert_rule(rule_id: str) -> dict[str, Any]:
+        """Deactivate an alert rule so the scheduler stops evaluating it, keeping the rule
+        and its history for audit (reversible)."""
+        rule = await resources.alert_rules.get_rule(rule_id)
+        if rule is None:
+            return envelope({"rule_id": rule_id, "found": False}, model_version=NO_MODEL)
+        await resources.alert_rules.save_rule(rule.model_copy(update={"active": False}))
+        return envelope(
+            {"rule_id": rule_id, "found": True, "active": False}, model_version=NO_MODEL
+        )
+
+    @mcp.tool()
+    async def delete_alert_rule(rule_id: str) -> dict[str, Any]:
+        """Permanently delete an alert rule by id."""
+        deleted = await resources.alert_rules.delete_rule(rule_id)
+        return envelope({"rule_id": rule_id, "deleted": deleted}, model_version=NO_MODEL)
+
 
 def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):
     from sentinel_vantage.core.versioning import CATALYST_MODEL_VERSION
@@ -274,9 +338,37 @@ def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):
         )
         return envelope(result.model_dump(mode="json"), model_version=CATALYST_MODEL_VERSION)
 
+    @mcp.tool()
+    async def get_recent_filings(symbol: str, lookback_days: int = 90) -> dict[str, Any]:
+        """A symbol's recent structured SEC filings/events (10-K/10-Q/8-K, etc.) in the
+        lookback window, most recent first — the raw event timeline, not tied to a move."""
+        as_of = await as_of_fn()
+        start = as_of - timedelta(days=lookback_days)
+        events = await catalysts.events.get_events(symbol.upper(), start=start, end=as_of)
+        events.sort(key=lambda e: e.event_time, reverse=True)
+        return envelope(
+            {
+                "symbol": symbol.upper(),
+                "events": [e.model_dump(mode="json") for e in events],
+            },
+            model_version=NO_MODEL,
+        )
+
 
 def _register_research_tools(mcp, research, envelope, as_of_fn):
     from sentinel_vantage.core.versioning import RESEARCH_MODEL_VERSION
+    from sentinel_vantage.domain.research.strategy import load_strategies
+
+    @mcp.tool()
+    async def list_strategies() -> dict[str, Any]:
+        """List the available research strategies with their factor weights, hard gates,
+        and penalties, so a caller can pick one for find_research_candidates."""
+        by_id = {p.id: p for p in load_strategies().values()}
+        profiles = sorted(by_id.values(), key=lambda p: p.id)
+        return envelope(
+            {"strategies": [p.model_dump(mode="json") for p in profiles]},
+            model_version=NO_MODEL,
+        )
 
     @mcp.tool()
     async def find_research_candidates(
@@ -317,6 +409,29 @@ def _register_research_tools(mcp, research, envelope, as_of_fn):
                 "strategy": cmp.strategy,
                 "results": [r.model_dump(mode="json") for r in cmp.results],
                 "ineligible": [e.model_dump(mode="json") for e in cmp.ineligible],
+            },
+            model_version=RESEARCH_MODEL_VERSION,
+        )
+
+    @mcp.tool()
+    async def get_research_history(
+        symbol: str,
+        strategy: str = "GARP",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> dict[str, Any]:
+        """Evolution of a symbol's research score under a strategy over an ISO-8601 UTC
+        range (default the trailing 180 days), read from persisted snapshots."""
+        end_dt = _parse_iso(end) or await as_of_fn()
+        start_dt = _parse_iso(start) or (end_dt - timedelta(days=180))
+        history = await research.history(
+            symbol.upper(), strategy=strategy, start=start_dt, end=end_dt
+        )
+        return envelope(
+            {
+                "symbol": symbol.upper(),
+                "strategy": strategy,
+                "history": [r.model_dump(mode="json") for r in history],
             },
             model_version=RESEARCH_MODEL_VERSION,
         )

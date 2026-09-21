@@ -41,7 +41,8 @@ factor scoring → risk penalties → confidence). Strategies are version-contro
 Verified live on real Polygon prices + real SEC data (AAPL correctly excluded on GARP's
 growth gate).
 
-Tools: `find_research_candidates`, `compare_stocks`. CLI: `sv-fundamentals`.
+Tools: `find_research_candidates`, `compare_stocks`, `list_strategies`,
+`get_research_history`. CLI: `sv-fundamentals`.
 
 ## Phase 3 — Catalysts ✅
 
@@ -52,7 +53,7 @@ catalyst evidence with a causal-confidence label, never a proven cause. Verified
 NVDA's move traced to same-day 8-K/10-Q (strong); a move with no nearby filing correctly
 returns no catalyst.
 
-Tool: `explain_move`. CLI: `sv-events`.
+Tools: `explain_move`, `get_recent_filings`. CLI: `sv-events`.
 
 ## Phase 4 — Backtesting ✅
 
@@ -72,7 +73,8 @@ briefings — all evaluated by the always-on `scheduler` process independent of 
 client. Rules read like `["trend_score >= 85", "volume_ratio >= 2.0"]`.
 
 Tools: `create_watchlist`, `create_alert_rule`, `list_alert_events`,
-`get_watchlist_changes`, `get_market_brief`.
+`get_watchlist_changes`, `get_market_brief`, `list_alert_rules`, `get_watchlist`,
+`update_watchlist`, `delete_watchlist`, `disable_alert_rule`, `delete_alert_rule`.
 
 ## Phase 6 — Hardening 🚧
 

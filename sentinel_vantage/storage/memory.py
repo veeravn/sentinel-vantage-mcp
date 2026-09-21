@@ -145,6 +145,9 @@ class InMemoryWatchlistRepository:
     async def get_watchlist(self, watchlist_id: str):
         return self._wl.get(watchlist_id)
 
+    async def delete_watchlist(self, watchlist_id: str) -> bool:
+        return self._wl.pop(watchlist_id, None) is not None
+
 
 class InMemoryAlertRuleRepository:
     def __init__(self) -> None:
@@ -153,8 +156,14 @@ class InMemoryAlertRuleRepository:
     async def save_rule(self, rule) -> None:
         self._rules[rule.rule_id] = rule
 
+    async def get_rule(self, rule_id: str):
+        return self._rules.get(rule_id)
+
     async def list_active_rules(self):
         return [r for r in self._rules.values() if r.active]
+
+    async def delete_rule(self, rule_id: str) -> bool:
+        return self._rules.pop(rule_id, None) is not None
 
 
 class InMemoryAlertEventRepository:

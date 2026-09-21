@@ -52,6 +52,12 @@ class PostgresWatchlistRepository:
             created_at=r["created_at"],
         )
 
+    async def delete_watchlist(self, watchlist_id: str) -> bool:
+        status = await self._db.pool.execute(
+            "DELETE FROM watchlist WHERE watchlist_id = $1", watchlist_id
+        )
+        return _rows_affected(status) > 0
+
 
 class PostgresAlertRuleRepository:
     def __init__(self, db: Database) -> None:
@@ -76,12 +82,24 @@ class PostgresAlertRuleRepository:
             to_utc(rule.created_at),
         )
 
+    async def get_rule(self, rule_id: str) -> AlertRule | None:
+        r = await self._db.pool.fetchrow(
+            "SELECT rule_id, name, owner, symbols, watchlist_id, rule, severity, active, "
+            "       created_at FROM alert_rule WHERE rule_id = $1",
+            rule_id,
+        )
+        return _rule_from_row(r) if r is not None else None
+
     async def list_active_rules(self) -> list[AlertRule]:
         rows = await self._db.pool.fetch(
             "SELECT rule_id, name, owner, symbols, watchlist_id, rule, severity, active, "
             "       created_at FROM alert_rule WHERE active = TRUE ORDER BY created_at"
         )
         return [_rule_from_row(r) for r in rows]
+
+    async def delete_rule(self, rule_id: str) -> bool:
+        status = await self._db.pool.execute("DELETE FROM alert_rule WHERE rule_id = $1", rule_id)
+        return _rows_affected(status) > 0
 
 
 class PostgresAlertEventRepository:
@@ -134,6 +152,14 @@ class PostgresAlertEventRepository:
             limit,
         )
         return [_event_from_row(r) for r in rows]
+
+
+def _rows_affected(status: str) -> int:
+    """Parse an asyncpg command tag (e.g. "DELETE 1") into an affected-row count."""
+    try:
+        return int(status.split()[-1])
+    except (ValueError, IndexError):
+        return 0
 
 
 def _rule_from_row(r) -> AlertRule:
