@@ -97,7 +97,11 @@ In progress:
   auto-discovered by the loader
   and reweighting the same five factors as GARP (`find_research_candidates` /
   `compare_stocks` accept them by id or name).
-- Research worker cycle: persist `strategy_score` on a cadence + a Redis cache.
+- ✅ Research worker cycle — the market worker scores each configured strategy on its own
+  (slower) cadence, persists `strategy_score` snapshots (so `get_research_history`
+  populates), and publishes per-strategy ranks to a Redis cache that
+  `find_research_candidates` serves warm (`SV_RESEARCH_STRATEGIES`,
+  `SV_RESEARCH_SCORING_INTERVAL_SECONDS`).
 - Notification delivery for alerts (email / Slack / push).
 - ✅ XBRL tag-coverage refinement — expanded us-gaap candidate lists (ASC 606 revenue
   variants, combined basic/diluted EPS, NCI-inclusive equity, capital-lease debt); the

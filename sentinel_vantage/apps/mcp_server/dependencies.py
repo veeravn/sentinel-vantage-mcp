@@ -28,6 +28,7 @@ from sentinel_vantage.storage.postgres_repos import (
 )
 from sentinel_vantage.storage.rank_cache import RedisRankCache
 from sentinel_vantage.storage.redis_store import RedisStore
+from sentinel_vantage.storage.research_rank_cache import RedisResearchRankCache
 
 BENCHMARK_SYMBOL = "SPY"
 
@@ -46,6 +47,7 @@ class MCPResources:
     watchlist_service: WatchlistService
     briefing: BriefingService
     rank_cache: RedisRankCache
+    research_rank_cache: RedisResearchRankCache
 
     @classmethod
     def build(cls, settings: Settings) -> MCPResources:
@@ -86,6 +88,7 @@ class MCPResources:
             watchlist_service,
             briefing,
             RedisRankCache(redis),
+            RedisResearchRankCache(redis),
         )
 
     async def connect(self) -> None:

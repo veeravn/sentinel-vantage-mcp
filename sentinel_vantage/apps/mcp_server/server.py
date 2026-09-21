@@ -39,6 +39,7 @@ def build_server(
     settings = settings or get_settings()
 
     owns_resources = False
+    research_rank_cache = None
     if trend is not None:
         service = trend
         rank_cache = None
@@ -48,6 +49,7 @@ def build_server(
             owns_resources = True
         service = resources.service
         rank_cache = resources.rank_cache
+        research_rank_cache = resources.research_rank_cache
         research = research or resources.research
         catalysts = catalysts or resources.catalysts
 
@@ -163,7 +165,7 @@ def build_server(
         )
 
     if research is not None:
-        _register_research_tools(mcp, research, _envelope, _as_of)
+        _register_research_tools(mcp, research, _envelope, _as_of, research_rank_cache)
 
     if catalysts is not None:
         _register_catalyst_tools(mcp, catalysts, _envelope, _as_of)
@@ -355,9 +357,9 @@ def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):
         )
 
 
-def _register_research_tools(mcp, research, envelope, as_of_fn):
+def _register_research_tools(mcp, research, envelope, as_of_fn, research_cache=None):
     from sentinel_vantage.core.versioning import RESEARCH_MODEL_VERSION
-    from sentinel_vantage.domain.research.strategy import load_strategies
+    from sentinel_vantage.domain.research.strategy import get_strategy, load_strategies
 
     @mcp.tool()
     async def list_strategies() -> dict[str, Any]:
@@ -379,7 +381,26 @@ def _register_research_tools(mcp, research, envelope, as_of_fn):
     ) -> dict[str, Any]:
         """Rank research candidates for a strategy (e.g. GARP): hard gates, then
         cross-sectional factor scoring with penalties over point-in-time SEC fundamentals.
-        Returns each candidate's score, factor breakdown, and the names excluded by gates."""
+        Serves the worker's Redis cache when warm, else recomputes on demand. Returns each
+        candidate's score, factor breakdown, and the names excluded by gates."""
+        if research_cache is not None and sector is None:
+            try:
+                key = get_strategy(strategy).id
+            except KeyError:
+                key = strategy
+            cached = await research_cache.top(key, limit=max(limit * 4, 100))
+            shown = [r for r in cached if r.confidence >= min_confidence][:limit]
+            if shown:
+                return envelope(
+                    {
+                        "strategy": key,
+                        "source": "cache",
+                        "results": [r.model_dump(mode="json") for r in shown],
+                        "ineligible": [],
+                    },
+                    model_version=RESEARCH_MODEL_VERSION,
+                )
+
         rank = await research.rank(
             strategy,
             as_of=await as_of_fn(),
@@ -390,6 +411,7 @@ def _register_research_tools(mcp, research, envelope, as_of_fn):
         return envelope(
             {
                 "strategy": rank.strategy,
+                "source": "compute",
                 "universe_size": rank.universe_size,
                 "results": [r.model_dump(mode="json") for r in rank.results],
                 "ineligible": [e.model_dump(mode="json") for e in rank.ineligible],

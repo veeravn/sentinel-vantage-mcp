@@ -63,6 +63,7 @@ def _resources() -> MCPResources:
         watchlist_service=WatchlistService(watchlists, service, trend_scores, events),
         briefing=BriefingService(service, research=research, alert_events=alert_events),
         rank_cache=None,
+        research_rank_cache=None,
     )
 
 

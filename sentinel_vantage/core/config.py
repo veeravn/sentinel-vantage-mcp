@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     scoring_interval_seconds: int = 60
     backfill_days: int = 220  # calendar days (~150 trading days)
     trend_horizon: str = "1d"
+    # Research fundamentals change slowly, so score them far less often than trend.
+    research_scoring_interval_seconds: int = 3600
+    research_strategies: list[str] = ["GARP"]
 
     alert_interval_seconds: int = 300
 
