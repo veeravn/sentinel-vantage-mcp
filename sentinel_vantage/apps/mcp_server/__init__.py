@@ -1,5 +1,2 @@
-"""MCP server process — the query/reasoning interface.
-
-Thin application layer over the domain services. It is downstream of the always-on
-monitoring path and never becomes the source of truth for calculations.
-"""
+"""MCP server process — a thin query interface over the domain services, downstream of the
+monitoring path and never the source of truth for calculations."""

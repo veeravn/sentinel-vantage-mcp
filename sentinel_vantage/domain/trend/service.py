@@ -1,10 +1,6 @@
-"""TrendService — orchestrates the trend pipeline.
-
-MCP handlers map ~1:1 to these methods (design section 21), so the business logic is
-testable without an LLM. The service fetches history through the BarRepository port,
-computes features, applies gates, scores the eligible universe cross-sectionally, and
-returns immutable results plus the excluded (ineligible) symbols.
-"""
+"""TrendService — orchestrates the trend pipeline: fetch history via the BarRepository
+port, compute features, apply gates, score the eligible universe cross-sectionally, and
+return immutable results plus the excluded symbols."""
 
 from __future__ import annotations
 

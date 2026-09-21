@@ -1,10 +1,6 @@
-"""ResearchService — orchestrates per-strategy research-candidate ranking.
-
-Combines market data (price, liquidity, volatility, momentum from bars) with
-point-in-time fundamentals, applies the strategy's hard gates, scores the eligible
-universe cross-sectionally, and returns immutable results plus the excluded names. MCP
-handlers map ~1:1 to these methods.
-"""
+"""ResearchService — per-strategy candidate ranking: combine market data with
+point-in-time fundamentals, apply the strategy's hard gates, score the eligible universe
+cross-sectionally, and return immutable results plus the excluded names."""
 
 from __future__ import annotations
 

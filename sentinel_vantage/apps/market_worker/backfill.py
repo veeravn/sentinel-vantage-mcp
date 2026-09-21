@@ -1,12 +1,6 @@
-"""Historical backfill: pull daily bars from the provider into Postgres.
-
-Entry point ``sv-backfill`` seeds the universe (idempotent), then fetches daily bars for
-every active symbol plus the benchmark over a trailing window and upserts them. MVP
-ingests provider-adjusted bars (corporate actions applied upstream); adj_close is left
-NULL, reserved for a future raw+adjusted split.
-
-For large universes prefer Polygon Flat Files over per-symbol REST — a later refinement.
-"""
+"""Historical backfill (``sv-backfill``): seed the universe, then fetch and upsert daily
+bars for every active symbol plus the benchmark over a trailing window. Ingests
+provider-adjusted bars (adj_close left NULL)."""
 
 from __future__ import annotations
 

@@ -1,9 +1,5 @@
-"""Entrypoint: run the scheduler process.
-
-Evaluates alert rules on a cadence, independent of any MCP client (design section 16),
-and can run scheduled briefings. Alert events are persisted with their evaluated values
-for audit, deduplicated by a per-(rule, symbol) cooldown.
-"""
+"""Run the scheduler process: evaluate alert rules on a cadence (independent of any MCP
+client) and run scheduled briefings."""
 
 from __future__ import annotations
 

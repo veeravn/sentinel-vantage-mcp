@@ -1,8 +1,5 @@
-"""BriefingService — a compact market/strategy/alerts briefing from stored results.
-
-Scheduled briefings query stored scores rather than re-scanning the market through an
-LLM (design section 16). The same service backs the ``get_market_brief`` MCP tool.
-"""
+"""BriefingService — a compact market/strategy/alerts briefing from stored scores (never
+an LLM re-scan); also backs the ``get_market_brief`` tool."""
 
 from __future__ import annotations
 

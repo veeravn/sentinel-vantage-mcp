@@ -1,8 +1,5 @@
-"""Entrypoint: run a point-in-time backtest of a model over stored data.
-
-Usage: sv-backtest [trend|garp] [--horizon N] [--every N] [--buckets N]
-                   [--min-confidence F]
-"""
+"""Run a point-in-time backtest over stored data:
+``sv-backtest [trend|garp] [--horizon N] [--every N] [--buckets N] [--min-confidence F]``."""
 
 from __future__ import annotations
 

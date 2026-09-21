@@ -8,17 +8,13 @@ from pydantic import BaseModel, Field
 
 
 class Fundamentals(BaseModel):
-    """Normalized, point-in-time fundamental metrics for one symbol.
-
-    Every field is optional: a missing input stays ``None`` and lowers
-    ``data_confidence`` rather than being imputed (design section 19).
-    """
+    """Normalized, point-in-time fundamental metrics for one symbol. A missing input stays
+    ``None`` and lowers ``data_confidence`` rather than being imputed."""
 
     symbol: str
     cik: str
     as_of: datetime
 
-    # Growth
     revenue: float | None = None
     revenue_prior: float | None = None
     revenue_growth_yoy: float | None = None
@@ -26,16 +22,13 @@ class Fundamentals(BaseModel):
     eps_prior: float | None = None
     eps_growth_yoy: float | None = None
 
-    # Quality
     gross_margin: float | None = None
     operating_margin: float | None = None
     roe: float | None = None
 
-    # Financial strength
     debt_to_equity: float | None = None
     net_debt: float | None = None
 
-    # Valuation (needs market price)
     price: float | None = None
     shares_outstanding: float | None = None
     market_cap: float | None = None

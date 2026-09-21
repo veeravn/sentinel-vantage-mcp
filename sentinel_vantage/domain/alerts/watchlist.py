@@ -1,9 +1,5 @@
-"""WatchlistService — summarize material changes for a watchlist since a timestamp.
-
-Compares each symbol's current Trend Score against its last stored score before
-``since`` and counts new events in between (design use case: "what changed in my
-watchlist since yesterday?").
-"""
+"""WatchlistService — summarize material changes since a timestamp: each symbol's current
+Trend Score vs its last stored score before ``since``, plus new events in between."""
 
 from __future__ import annotations
 

@@ -1,18 +1,6 @@
-"""Polygon.io market-data adapter.
-
-Implements the MarketDataProvider port against Polygon's REST aggregates and quotes and
-its minute-aggregate WebSocket. Every emitted Bar/Quote carries feed provenance
-(``polygon/delayed`` or ``polygon/realtime``); Polygon delivers 100% consolidated
-market coverage on every tier, so the volume-based trend features are honest even on the
-free plan.
-
-Parsing is factored into pure functions so the WebSocket path is unit-testable without a
-live socket and the REST path with an httpx MockTransport.
-
-REST GETs are proactively paced by a rolling-window rate limiter (``requests_per_minute``)
-to stay under the tier quota, and still back off on 429/5xx as a safety net. Flat Files
-bulk backfill for large historical loads is a later refinement.
-"""
+"""Polygon.io market-data adapter over REST aggregates/quotes and the minute-aggregate
+WebSocket. Parsing is factored into pure functions for testability; REST GETs are paced
+by a rolling-window rate limiter and back off on 429/5xx."""
 
 from __future__ import annotations
 
@@ -65,11 +53,8 @@ def bar_from_agg(symbol: str, agg: dict[str, Any], *, timeframe: str, feed: str)
 
 
 def parse_ws_message(raw: str, *, feed: str) -> list[BarEvent]:
-    """Pure: parse a Polygon WebSocket text frame into minute-aggregate BarEvents.
-
-    Polygon frames are JSON arrays of events; minute aggregates have ``ev == "AM"``.
-    Status/auth frames and non-AM events are ignored.
-    """
+    """Pure: parse a Polygon WebSocket text frame into minute-aggregate (``ev == "AM"``)
+    BarEvents; status/auth and non-AM events are ignored."""
     try:
         events = json.loads(raw)
     except json.JSONDecodeError:
@@ -119,8 +104,7 @@ class PolygonMarketDataProvider(MarketDataProvider):
         self.feed = f"polygon/{feed_mode}"
         self._ws_url = WS_REALTIME if feed_mode == "realtime" else WS_DELAYED
         self._client = client or httpx.AsyncClient(base_url=base_url, timeout=30.0)
-        # Proactive pacing to stay under the tier quota (0 = unlimited, e.g. paid tiers).
-        self._limiter = RateLimiter(requests_per_minute)
+        self._limiter = RateLimiter(requests_per_minute)  # 0 = unlimited (paid tiers)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -131,14 +115,11 @@ class PolygonMarketDataProvider(MarketDataProvider):
     async def _get(
         self, path: str, params: dict[str, Any], *, max_retries: int = 6
     ) -> httpx.Response:
-        """GET with backoff on 429 (free-tier 5 req/min) and transient 5xx.
-
-        Honors a ``Retry-After`` header when present; otherwise backs off
-        exponentially (1, 2, 4, ... capped at 60s).
-        """
+        """GET with proactive pacing and backoff on 429/5xx (honors ``Retry-After``,
+        else exponential 1,2,4,… capped at 60s)."""
         delay = 1.0
         for attempt in range(max_retries + 1):
-            await self._limiter.acquire()  # proactive pacing before each request
+            await self._limiter.acquire()
             resp = await self._client.get(path, params=params)
             if resp.status_code not in (429, 500, 502, 503, 504) or attempt == max_retries:
                 resp.raise_for_status()
@@ -192,16 +173,12 @@ class PolygonMarketDataProvider(MarketDataProvider):
         return quotes
 
     async def get_market_calendar(self, start: datetime, end: datetime) -> list[Session]:
-        """Weekday trading sessions between start and end (UTC).
-
-        Approximation: Mon-Fri, 09:30-16:00 ET rendered as 13:30-20:00 UTC. Holiday
-        awareness and DST-exact session times are a later refinement; store timestamps
-        stay UTC and calendar semantics stay separate from bar timestamps.
-        """
+        """Weekday trading sessions between start and end (UTC). Approximation: Mon-Fri
+        09:30-16:00 ET as 13:30-20:00 UTC; holiday/DST-exact times are a later refinement."""
         sessions: list[Session] = []
         day = start.date()
         while day <= end.date():
-            if day.weekday() < 5:  # Mon-Fri
+            if day.weekday() < 5:
                 base = datetime(day.year, day.month, day.day, tzinfo=UTC)
                 sessions.append(
                     Session(
@@ -215,12 +192,8 @@ class PolygonMarketDataProvider(MarketDataProvider):
         return sessions
 
     async def stream_bars(self, symbols: Sequence[str] | str) -> AsyncIterator[BarEvent]:
-        """Live minute-aggregate stream over Polygon's WebSocket.
-
-        Authenticates, subscribes to ``AM.*`` (or the given symbols), and yields parsed
-        BarEvents. Reconnect/backfill of gaps is handled by the ingestion worker, not
-        here — this coroutine surfaces a clean event stream.
-        """
+        """Live minute-aggregate stream: authenticate, subscribe to ``AM.*`` (or the given
+        symbols), and yield parsed BarEvents. Reconnect/gap-backfill is the worker's job."""
         if symbols == "*" or symbols == ["*"]:
             sub = "AM.*"
         else:

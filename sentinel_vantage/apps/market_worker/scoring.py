@@ -1,9 +1,5 @@
-"""One scoring cycle: score the eligible universe, persist snapshots, publish ranks.
-
-Runs inside the always-on worker (no MCP client required). The cycle scores every
-eligible symbol (not a truncated top-N), persists feature and score snapshots, and
-publishes the full ranked set to the Redis cache the query path reads from.
-"""
+"""One worker scoring cycle: score every eligible symbol, persist feature and score
+snapshots, and publish the full ranked set to the Redis cache the query path reads."""
 
 from __future__ import annotations
 

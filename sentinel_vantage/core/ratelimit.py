@@ -1,15 +1,6 @@
-"""Async rolling-window rate limiter.
-
-Paces outbound requests to stay under a provider's quota *before* hitting it, matching
-the way APIs like Polygon enforce "at most N requests in any rolling W-second window".
-It records recent request times and, when the window is full, waits exactly until the
-oldest one ages out. This allows a legitimate burst of up to N when idle, then a precise
-cadence — without ever exceeding N per window. A non-positive rate disables it (paid
-tiers with no meaningful limit).
-
-A token bucket is deliberately NOT used: after an initial burst it refills faster than a
-rolling window allows, so the request just past the burst still trips the API's limit.
-"""
+"""Async rolling-window rate limiter: at most N requests in any rolling W-second window,
+waiting until the oldest ages out when full. A non-positive rate disables it. A token
+bucket is deliberately avoided — its post-burst refill still trips the API's limit."""
 
 from __future__ import annotations
 

@@ -76,7 +76,6 @@ async def test_mcp_tools_over_postgres_and_redis():
         assert warm["data"]["source"] == "cache"
         assert warm["data"]["results"][0]["symbol"] == "NVDA"
 
-        # analyze reads the same Postgres data.
         analysis = _payload(await server.call_tool("analyze_stock", {"symbol": "nvda"}))
         assert analysis["data"]["eligible"] is True
 
@@ -87,7 +86,6 @@ async def test_mcp_tools_over_postgres_and_redis():
         )
         assert len(hist["data"]["history"]) >= 1
 
-        # status reflects real, connected dependencies.
         status = _payload(await server.call_tool("get_status", {}))
         assert status["data"]["health"]["status"] == "ok"
     finally:

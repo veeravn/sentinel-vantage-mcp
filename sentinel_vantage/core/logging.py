@@ -1,8 +1,5 @@
-"""Structured logging setup shared by all three processes.
-
-Logs carry structured metadata but never secrets or full user portfolios (see the
-security requirements in the design). Call ``configure_logging`` once at process start.
-"""
+"""Structured logging shared by all processes; logs carry metadata but never secrets. Call
+``configure_logging`` once at process start."""
 
 from __future__ import annotations
 

@@ -1,10 +1,5 @@
-"""In-memory repositories.
-
-Back the trend service without a live database — used by tests and as the default MCP
-wiring until the Postgres/Redis and Polygon implementations land. They satisfy the same
-ports (BarRepository, ScoreRepository), so swapping in the durable versions changes no
-domain or MCP code.
-"""
+"""In-memory repositories backing the trend service without a live database (tests and
+default wiring); they satisfy the same ports as the durable Postgres versions."""
 
 from __future__ import annotations
 

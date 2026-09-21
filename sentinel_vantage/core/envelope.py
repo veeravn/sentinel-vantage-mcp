@@ -1,14 +1,7 @@
-"""The result envelope — the single output convention for the whole system.
-
-Every value that leaves a domain service or an MCP tool is wrapped with provenance:
-when it was computed (``as_of``), which provider/feed it came from, which model
-version produced it, and how confident we are. This is what makes outputs auditable
-and keeps stale or partial data from masquerading as a normal-confidence result.
-
-Design rule (section 11): a *low score* and a *low-confidence score* are different
-things. ``confidence`` is always reported so callers — including the LLM — can tell
-them apart. ``None`` means "not a scored result" (e.g. a health payload).
-"""
+"""The result envelope: every value leaving a service or MCP tool is wrapped with
+provenance (as_of, provider/feed, model version, confidence). ``confidence`` is always
+reported so a low score and a low-confidence score are distinguishable; ``None`` means
+not a scored result."""
 
 from __future__ import annotations
 

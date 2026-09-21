@@ -1,9 +1,6 @@
-"""Events backfill: ingest recent SEC filings for the universe as structured events.
-
-Entry point ``sv-events``: map securities to CIKs, then pull each company's recent
-material filings (10-K/10-Q/8-K) and store them as events for catalyst correlation.
-Idempotent. Requires SV_SEC_USER_AGENT.
-"""
+"""Events backfill (``sv-events``): map securities to CIKs, then store each company's
+recent 10-K/10-Q/8-K filings as events for catalyst correlation. Idempotent; requires
+SV_SEC_USER_AGENT."""
 
 from __future__ import annotations
 

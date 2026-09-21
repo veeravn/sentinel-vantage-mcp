@@ -1,11 +1,6 @@
-"""Fundamentals backfill: map securities to CIKs and ingest their XBRL facts.
-
-Entry point ``sv-fundamentals``: fetch SEC's ticker->CIK map, set each active
-security's CIK, then pull its companyfacts (one request per symbol) and store the
-tags in ``domain.research.tags.ALL_TAGS`` as point-in-time facts. Idempotent.
-
-Requires SV_SEC_USER_AGENT (SEC needs a descriptive User-Agent with contact info).
-"""
+"""Fundamentals backfill (``sv-fundamentals``): map securities to CIKs, then pull each
+company's ``ALL_TAGS`` companyfacts as point-in-time facts. Idempotent; requires
+SV_SEC_USER_AGENT."""
 
 from __future__ import annotations
 

@@ -60,7 +60,6 @@ async def test_alert_watchlist_brief_flow():
 
         server = build_server(settings, resources=res)
 
-        # Create a watchlist and a rule on abnormal volume.
         wl = _payload(
             await server.call_tool(
                 "create_watchlist", {"name": "mine", "symbols": ["NVDA", "AAPL"]}
@@ -79,7 +78,6 @@ async def test_alert_watchlist_brief_flow():
         )
         assert rule["data"]["rule"]["all"][0]["metric"] == "volume_ratio"
 
-        # The scheduler's engine evaluates rules (run once here).
         engine = AlertEngine(
             res.alert_rules,
             res.alert_events,
@@ -89,11 +87,9 @@ async def test_alert_watchlist_brief_flow():
         fired = await engine.run_once()
         assert {e.symbol for e in fired} == {"NVDA"}  # only NVDA has abnormal volume
 
-        # list_alert_events surfaces it.
         events = _payload(await server.call_tool("list_alert_events", {}))
         assert any(e["symbol"] == "NVDA" for e in events["data"]["events"])
 
-        # get_market_brief returns top trending.
         brief = _payload(await server.call_tool("get_market_brief", {"top": 3}))
         assert brief["data"]["top_trending"]
 

@@ -1,16 +1,6 @@
-"""The backtest engine.
-
-Strategy-agnostic and point-in-time by construction. On each rebalance date it asks a
-``score_fn`` for that date's scores (which must use only data available then), measures
-each name's forward return over the holding horizon, buckets by score, and aggregates
-the classic evaluation metrics (design section 17.1): forward-return-by-bucket,
-top-minus-bottom spread, rank IC, hit rate, turnover, and coverage.
-
-Decoupling the score and forward-return functions keeps the engine deterministic and
-unit-testable with synthetic inputs, and lets the same engine validate both the trend
-and research models. Look-ahead safety (AT-6) is the responsibility of ``score_fn`` and
-``forward_return_fn`` — they receive an ``as_of`` and must respect it.
-"""
+"""Strategy-agnostic, point-in-time backtest engine: on each rebalance date it scores via
+``score_fn``, measures forward returns, buckets by score, and aggregates the evaluation
+metrics. Look-ahead safety is the caller's ``score_fn``/``forward_return_fn`` duty."""
 
 from __future__ import annotations
 

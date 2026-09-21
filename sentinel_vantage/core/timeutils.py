@@ -1,9 +1,4 @@
-"""Time helpers.
-
-Convention: all timestamps are stored and compared in UTC. Exchange-session and
-market-calendar semantics are kept separately (see the market-calendar provider),
-never baked into stored timestamps.
-"""
+"""Time helpers. Convention: all timestamps are stored and compared in UTC."""
 
 from __future__ import annotations
 
@@ -16,11 +11,7 @@ def utcnow() -> datetime:
 
 
 def to_utc(dt: datetime) -> datetime:
-    """Normalize any datetime to timezone-aware UTC.
-
-    Naive datetimes are assumed to already be UTC — callers must never pass a naive
-    local time. This keeps a single, explicit rule at the storage boundary.
-    """
+    """Normalize any datetime to timezone-aware UTC (naive datetimes are assumed UTC)."""
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
     return dt.astimezone(UTC)

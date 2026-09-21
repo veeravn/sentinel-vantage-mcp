@@ -1,10 +1,5 @@
-"""Ports the trend service depends on.
-
-Defining these as Protocols keeps the domain independent of storage and providers:
-the Postgres/Redis repositories and the Polygon adapter implement them later, while
-tests and the initial MCP wiring use in-memory implementations. The scoring engine
-never imports a vendor SDK.
-"""
+"""Ports (Protocols) the trend service depends on, keeping the domain independent of the
+storage and provider implementations that satisfy them."""
 
 from __future__ import annotations
 

@@ -1,10 +1,5 @@
-"""Starter universe seed.
-
-A liquid large-cap subset spanning sectors, plus SPY as the relative-strength
-benchmark. This bootstraps development; the full S&P 500 / Russell 1000 membership and
-its daily reconciliation come from an index/reference provider in a later step. Each
-entry is point-in-time reference data written to the ``security`` table.
-"""
+"""Starter universe seed: a liquid large-cap subset spanning sectors, plus SPY as the
+relative-strength benchmark, written to the ``security`` table."""
 
 from __future__ import annotations
 

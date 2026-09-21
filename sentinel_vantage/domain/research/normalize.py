@@ -1,17 +1,6 @@
-"""Normalize point-in-time XBRL facts (+ price) into comparable metrics.
-
-Pure and deterministic. Two selection modes:
-
-- **annual series** (income-statement flows: revenue, net income, EPS, margins): the
-  full-year (fp == "FY") value per fiscal period, taking the latest-filed version of
-  each period (so a restatement visible as-of wins). Growth compares the two most
-  recent annual periods.
-- **latest instant** (balance-sheet stocks: equity, debt, cash, shares): the value with
-  the most recent period end, latest-filed on ties.
-
-Tag priority (domain.research.tags) handles issuers that report the same quantity under
-different concepts: the first candidate tag with data wins.
-"""
+"""Normalize point-in-time XBRL facts (+ price) into comparable metrics. Pure and
+deterministic: income-statement flows use the latest-filed full-year value per period;
+balance-sheet stocks use the most recent instant."""
 
 from __future__ import annotations
 
@@ -22,20 +11,16 @@ from sentinel_vantage.domain.research import tags as T
 from sentinel_vantage.domain.research.models import Fundamentals
 from sentinel_vantage.providers.base import FundamentalFact
 
-# Metrics whose absence most undermines a research score (drives data_confidence/missing).
+# Metrics whose absence drives data_confidence / missing.
 _KEY_METRICS = ("revenue", "revenue_growth_yoy", "eps", "gross_margin", "roe")
 
 
 def _annual_by_period(
     facts: Sequence[FundamentalFact], candidate_tags: Sequence[str]
 ) -> dict[date, float]:
-    """Full-year value keyed by fiscal period end, for the first candidate tag with data.
-
-    Latest-filed version of each period wins (so an as-of-visible restatement replaces
-    the original). Returning the period map — not just a series — lets callers align
-    numerator and denominator (e.g. gross profit to its own revenue year) instead of
-    blindly pairing each metric's latest value.
-    """
+    """Full-year value keyed by fiscal period end, for the first candidate tag with data
+    (latest-filed version of each period wins). The period map lets callers align a
+    numerator to its own denominator year."""
     for tag in candidate_tags:
         by_period: dict[date, tuple[date, float]] = {}
         for f in facts:
@@ -60,7 +45,7 @@ def _latest_instant(
 ) -> float | None:
     """Most recent balance-sheet value for the first candidate tag with data."""
     for tag in candidate_tags:
-        best: tuple[date, date, float] | None = None  # (period_end, filed_at, value)
+        best: tuple[date, date, float] | None = None
         for f in facts:
             if f.tag != tag:
                 continue
@@ -103,8 +88,7 @@ def compute_fundamentals(
     eps = eps_series[-1] if eps_series else None
     eps_prior = eps_series[-2] if len(eps_series) >= 2 else None
 
-    # Align margin/return numerators to the latest revenue year so ratios pair the same
-    # period; fall back to each metric's own latest value if that year is absent.
+    # Align margin/return numerators to the latest revenue year, else their own latest.
     def _aligned(by_period: dict[date, float]) -> float | None:
         if latest is not None and latest in by_period:
             return by_period[latest]
@@ -117,8 +101,7 @@ def compute_fundamentals(
     net_income = _aligned(ni_by_period)
     operating_income = _aligned(op_by_period)
     gross_profit = _aligned(gross_by_period)
-    # Derive gross profit when it is not reported directly: revenue - cost of revenue,
-    # for the same fiscal year as revenue (never mixing periods).
+    # Derive gross profit from revenue - cost of revenue for the same year when untagged.
     if gross_profit is None and revenue is not None and latest is not None:
         cogs_by_period = _annual_by_period(facts, T.COST_OF_REVENUE)
         cogs = cogs_by_period.get(latest)

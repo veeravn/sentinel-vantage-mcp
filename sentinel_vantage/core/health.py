@@ -1,9 +1,5 @@
-"""Shared health model.
-
-Used by all three processes and surfaced by the MCP ``get_status`` tool. A provider
-or dependency being down degrades the affected component — it must not crash the
-server (design NFR: a provider outage degrades metrics, not the whole system).
-"""
+"""Shared health model, surfaced by the ``get_status`` tool. A downed dependency degrades
+the affected component rather than crashing the server."""
 
 from __future__ import annotations
 

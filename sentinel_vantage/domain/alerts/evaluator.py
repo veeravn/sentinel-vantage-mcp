@@ -1,9 +1,5 @@
-"""Pure rule-DSL evaluation.
-
-Deterministic and side-effect free so rules are testable and replayable. A condition on
-a metric that is missing (or None) evaluates to False — a rule never fires on absent
-data.
-"""
+"""Pure, deterministic rule-DSL evaluation. A condition on a missing (or None) metric is
+False — a rule never fires on absent data."""
 
 from __future__ import annotations
 

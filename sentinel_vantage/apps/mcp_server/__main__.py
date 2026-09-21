@@ -1,9 +1,5 @@
-"""Entrypoint: run the MCP server over the streamable-http transport.
-
-Builds the Starlette streamable-HTTP app, optionally wraps it with bearer-token auth
-(when SV_MCP_AUTH_TOKEN is set), and serves it with uvicorn. Auth is enforced at the
-ASGI layer so it does not interfere with streaming responses.
-"""
+"""Run the MCP server over streamable-http: build the Starlette app, wrap it with
+bearer-token auth when SV_MCP_AUTH_TOKEN is set, and serve it with uvicorn."""
 
 from __future__ import annotations
 

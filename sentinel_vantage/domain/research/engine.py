@@ -1,16 +1,6 @@
-"""research-v1 scoring for a single strategy.
-
-Per-strategy, not a universal buy score (design section 10.3). Each factor is a family
-of metrics with a direction (higher- or lower-is-better); every metric is z-scored
-cross-sectionally across the eligible universe, signed by its direction, and averaged
-into a factor z. Factor scores (sigmoid of the factor z, 0-1) are combined with the
-strategy weights into a 0-100 weighted factor score, then risk penalties (in points)
-are subtracted:
-
-    ResearchCandidateScore = clamp(WeightedFactorScore - RiskPenalty, 0, 100)
-
-Deterministic: pure functions, stable ordering, rounded outputs.
-"""
+"""research-v1 per-strategy scoring: each metric is z-scored cross-sectionally and signed
+by direction, averaged into factor z's, sigmoid-weighted into a 0-100 score, minus risk
+penalties. Pure and deterministic."""
 
 from __future__ import annotations
 

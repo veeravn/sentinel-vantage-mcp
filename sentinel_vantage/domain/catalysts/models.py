@@ -1,9 +1,5 @@
-"""Catalyst domain models: structured events and correlation evidence.
-
-The system never claims a headline *caused* a move merely because they occurred close
-together (design section 12). Correlation returns an evidence strength and competing
-explanations; causal language is deliberately avoided.
-"""
+"""Catalyst domain models: structured events and correlation evidence (an evidence
+strength and competing explanations, never a claim of causation)."""
 
 from __future__ import annotations
 

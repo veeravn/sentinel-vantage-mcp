@@ -1,9 +1,6 @@
-"""Strategy profiles: versioned, immutable configuration loaded from YAML.
-
-A strategy declares its universe gates, hard gates, factor weights, and risk penalties
-(design sections 10.3, 10.4, 26). Once a strategy version has produced a persisted
-score it must be treated as frozen — a weight change is a new ``score_version``.
-"""
+"""Strategy profiles: versioned, immutable YAML config (universe/hard gates, factor
+weights, penalties). A version that has produced a persisted score is frozen — a weight
+change is a new ``score_version``."""
 
 from __future__ import annotations
 
@@ -13,9 +10,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field
 
-# Strategy YAMLs are packaged inside sentinel_vantage/ (like the SQL migrations) so they
-# ship in the wheel/Docker image, not just in a source checkout. From this file
-# (sentinel_vantage/domain/research/strategy.py) the package root is two levels up.
+# Packaged inside sentinel_vantage/ (like the SQL migrations) so it ships in the wheel/image.
 STRATEGIES_DIR = Path(__file__).resolve().parents[2] / "strategies"
 
 

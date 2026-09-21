@@ -1,8 +1,5 @@
-"""Alerts and watchlists: structured rule DSL and stored state.
-
-Rules are structured and validated, never free-form LLM text, so they can be evaluated
-deterministically and replayed (design section 16).
-"""
+"""Alerts and watchlists: a structured, validated rule DSL (never free-form LLM text) and
+its stored state, so rules evaluate deterministically and replay."""
 
 from __future__ import annotations
 

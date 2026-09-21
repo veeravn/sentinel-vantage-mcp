@@ -1,10 +1,6 @@
-"""Alert engine — evaluate active rules and emit deduplicated alert events.
-
-Runs in the scheduler, independent of any MCP client (design section 16). For each
-active rule it resolves the referenced metrics for the rule's symbols, evaluates the
-DSL, and — subject to a per-(rule, symbol) cooldown — persists an alert event with the
-evaluated values for audit.
-"""
+"""Alert engine — for each active rule, resolve the referenced metrics, evaluate the DSL,
+and (subject to a per-(rule, symbol) cooldown) persist a deduplicated alert event with
+the evaluated values for audit."""
 
 from __future__ import annotations
 

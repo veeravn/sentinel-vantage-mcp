@@ -1,13 +1,4 @@
-"""Feature engine — pure functions from bar history to a FeatureSet.
-
-Deterministic and dependency-light (stdlib only) so the same inputs always produce the
-same features. Operates on daily bars for the Phase 1 ``1d`` horizon; intraday
-time-of-day volume normalization is a later refinement (noted in the design).
-
-Volume ratio compares the latest bar's volume against the trailing 20-day *median*
-(excluding the latest bar) — a robust baseline that is the daily analog of the
-time-of-day normalization the design calls for intraday.
-"""
+"""Feature engine — pure, deterministic functions from daily bar history to a FeatureSet."""
 
 from __future__ import annotations
 
@@ -18,9 +9,8 @@ from datetime import datetime
 from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.providers.base import Bar
 
-# How much recent history counts as "full confidence" for the trend horizon.
 FULL_CONFIDENCE_DAYS = 120
-_SCORING_FACTORS = 5  # return_1d, return_5d, intraday_return, relative_strength_1d, volume_ratio
+_SCORING_FACTORS = 5
 
 
 def _sorted(bars: Sequence[Bar]) -> list[Bar]:
@@ -63,7 +53,6 @@ def compute_features(
     return_5d = _pct_change(closes[-1], closes[-6]) if n >= 6 else None
     intraday_return = _pct_change(last.close, last.open) if last.open else None
 
-    # Daily returns series for realized volatility.
     daily_returns = [
         r for i in range(1, n) if (r := _pct_change(closes[i], closes[i - 1])) is not None
     ]
@@ -71,7 +60,6 @@ def compute_features(
         statistics.pstdev(daily_returns[-20:]) if len(daily_returns[-20:]) >= 2 else None
     )
 
-    # Trailing 20-day median dollar volume (liquidity gate input).
     dollar_vols = [closes[i] * volumes[i] for i in range(n)]
     dollar_volume_median_20d = statistics.median(dollar_vols[-20:]) if n >= 1 else None
 

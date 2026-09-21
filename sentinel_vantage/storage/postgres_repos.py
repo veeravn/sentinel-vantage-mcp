@@ -1,10 +1,6 @@
-"""Postgres-backed implementations of the trend service ports.
-
-These satisfy the same BarRepository / ScoreRepository Protocols as the in-memory
-versions, so swapping them in changes no domain or MCP code. JSONB columns are encoded
-and decoded explicitly (json.dumps + ``::jsonb`` cast on write, json.loads on read) to
-avoid relying on connection-level codecs.
-"""
+"""Postgres-backed implementations of the trend service ports (same Protocols as the
+in-memory versions). JSONB is encoded/decoded explicitly (json.dumps + ``::jsonb`` on
+write, json.loads on read) rather than via connection-level codecs."""
 
 from __future__ import annotations
 

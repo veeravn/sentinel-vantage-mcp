@@ -1,8 +1,5 @@
-"""Parse human/LLM-friendly condition strings into structured Conditions.
-
-Accepts "metric op value", e.g. "trend_score >= 85" or "research_score:GARP >= 75".
-This keeps the MCP surface simple while the stored rule stays a validated DSL.
-"""
+"""Parse "metric op value" condition strings (e.g. "trend_score >= 85",
+"research_score:GARP >= 75") into structured, validated Conditions."""
 
 from __future__ import annotations
 

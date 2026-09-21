@@ -1,17 +1,8 @@
-"""XBRL concept-tag normalization.
-
-Issuers report the same economic quantity under different us-gaap tags, so each logical
-metric maps to a priority-ordered list of candidate tags. The normalization layer picks
-the first tag that has data for a period. This is the crux of cross-company
-comparability the design calls out (section 8.2).
-"""
+"""XBRL concept-tag normalization: each logical metric maps to a priority-ordered list
+of candidate us-gaap/dei tags; the first with data for a period wins."""
 
 from __future__ import annotations
 
-# Priority-ordered candidate tags per logical metric (first with data wins). Lists are
-# ordered most-standard first; alternates cover issuers that tag the same economic
-# quantity under a different concept (ASC 606 revenue variants, combined basic/diluted
-# EPS, NCI-inclusive equity, capital-lease-inclusive debt).
 REVENUE = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "RevenueFromContractWithCustomerIncludingAssessedTax",
@@ -20,7 +11,7 @@ REVENUE = [
     "SalesRevenueGoodsNet",
     "SalesRevenueServicesNet",
 ]
-# Cost of revenue — used to derive gross profit when GrossProfit is not reported.
+# Used to derive gross profit when GrossProfit is not reported.
 COST_OF_REVENUE = [
     "CostOfRevenue",
     "CostOfGoodsAndServicesSold",
@@ -49,9 +40,7 @@ CASH = [
     "CashAndCashEquivalentsAtCarryingValue",
     "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
 ]
-# CommonStockSharesOutstanding (us-gaap) is often absent; the dei cover-page concept
-# EntityCommonStockSharesOutstanding is almost always present. The SEC adapter scans
-# both taxonomies, so listing the dei tag here is enough for it to be ingested.
+# us-gaap count is often absent; the dei cover-page concept backs it up (adapter scans both).
 SHARES_OUTSTANDING = [
     "CommonStockSharesOutstanding",
     "EntityCommonStockSharesOutstanding",
@@ -59,7 +48,7 @@ SHARES_OUTSTANDING = [
 OPERATING_CASH_FLOW = ["NetCashProvidedByUsedInOperatingActivities"]
 CAPEX = ["PaymentsToAcquirePropertyPlantAndEquipment"]
 
-# Every tag we ingest for a company (single companyfacts fetch covers all).
+# Every tag we ingest per company (one companyfacts fetch covers all).
 ALL_TAGS: list[str] = sorted(
     {
         *REVENUE,

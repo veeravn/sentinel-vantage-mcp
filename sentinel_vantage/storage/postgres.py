@@ -1,9 +1,4 @@
-"""Postgres access.
-
-Phase 0 provides just enough to open a pool and answer a health ping. The durable
-schema (securities, bars, feature/score snapshots, events, watchlists, audits) lands
-in Phase 1+. Kept deliberately thin so it is easy to test without a live database.
-"""
+"""Postgres access: open a connection pool and answer a health ping. Kept thin."""
 
 from __future__ import annotations
 

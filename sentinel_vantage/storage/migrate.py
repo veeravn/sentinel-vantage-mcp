@@ -1,10 +1,6 @@
-"""Lightweight SQL-file migration runner.
-
-Applies numbered ``*.sql`` files from ``migrations/`` in order, each in its own
-transaction, recording applied versions in ``schema_migrations``. No ORM — we use raw
-asyncpg, so a plain forward-only runner is the right amount of machinery. Re-running is
-safe: already-applied files are skipped.
-"""
+"""Forward-only SQL migration runner: apply numbered ``migrations/*.sql`` in order, each
+in its own transaction, recording versions in ``schema_migrations``. Re-running skips
+already-applied files."""
 
 from __future__ import annotations
 

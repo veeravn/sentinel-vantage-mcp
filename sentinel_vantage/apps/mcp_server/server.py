@@ -1,18 +1,5 @@
-"""MCP server construction and tool registration.
-
-Thin application layer over the domain services (design section 21): each tool maps
-~1:1 to a TrendService method and wraps the result in the provenance envelope so every
-response carries as_of / provider / feed / model_version / confidence. The server never
-recomputes scores as a source of truth — it reads the same Postgres/Redis state the
-worker writes.
-
-Wiring: without an injected service, ``MCPResources`` builds a Postgres-backed service
-plus the Redis rank cache, and the server's lifespan connects/closes them. Tests inject
-an in-memory service (``trend=``) and skip the lifespan entirely.
-
-scan_trending_stocks prefers the worker's Redis rank cache (the fast path) and falls
-back to an on-demand Postgres recompute when the cache is cold.
-"""
+"""MCP server construction and tool registration: a thin layer over the domain services
+that wraps every result in the provenance envelope."""
 
 from __future__ import annotations
 
@@ -47,20 +34,14 @@ def build_server(
     catalysts: CatalystService | None = None,
     resources: MCPResources | None = None,
 ) -> MCPServer:
-    """Build the MCP server.
-
-    - default: build and own Postgres/Redis resources (lifespan connects + closes them).
-    - ``resources=``: use caller-owned, already-connected resources (lifespan is a no-op;
-      the caller manages their lifecycle — used by integration tests).
-    - ``trend=``/``research=``: inject in-memory services; no external resources (unit tests).
-    """
+    """Build the MCP server, owning Postgres/Redis resources unless services or
+    already-connected resources are injected (tests)."""
     settings = settings or get_settings()
 
     owns_resources = False
     if trend is not None:
         service = trend
         rank_cache = None
-        # research stays as whatever was injected (may be None)
     else:
         if resources is None:
             resources = MCPResources.build(settings)
@@ -88,7 +69,7 @@ def build_server(
             provider=settings.provider_name,
             feed=settings.feed_label,
             model_version=model_version,
-            confidence=None,  # per-result confidence lives inside each result
+            confidence=None,
         ).model_dump(mode="json")
 
     async def _as_of():
@@ -96,11 +77,8 @@ def build_server(
 
     @mcp.tool()
     async def get_status() -> dict[str, Any]:
-        """Health and readiness of the Sentinel Vantage system.
-
-        Returns dependency status (Postgres, Redis), environment, active data feed,
-        and schema-conventions version. A status payload, not a scored result.
-        """
+        """Health and readiness of the system: dependency status, environment, active
+        feed, and schema-conventions version."""
         db = resources.db if resources else None
         redis = resources.redis if resources else None
         health = await check_health(settings, db=db, redis=redis)
@@ -119,14 +97,9 @@ def build_server(
         limit: int = 20,
         min_confidence: float = 0.0,
     ) -> dict[str, Any]:
-        """Rank the eligible universe by Trend Score for a horizon.
-
-        Reads the worker's Redis rank cache when warm (``source: cache``); otherwise
-        recomputes from Postgres on demand (``source: compute``). Each name carries its
-        score, confidence, rank percentile, raw metrics, reason codes, and risk flags.
-        Sector filtering forces a recompute (the cache is not sector-partitioned).
-        """
-        # Fast path: the worker's precomputed ranks.
+        """Rank the eligible universe by Trend Score for a horizon, serving the worker's
+        Redis rank cache when warm and recomputing from Postgres when cold. A sector
+        filter forces a recompute (the cache is not sector-partitioned)."""
         if rank_cache is not None and sector is None:
             cached = await rank_cache.top(horizon, limit=max(limit * 4, 100))
             shown = [r for r in cached if r.confidence >= min_confidence][:limit]
@@ -141,7 +114,6 @@ def build_server(
                     model_version=TREND_MODEL_VERSION,
                 )
 
-        # Cold cache (or sector filter): recompute from Postgres.
         scan = await service.scan(
             as_of=await _as_of(),
             horizon=horizon,
@@ -162,11 +134,8 @@ def build_server(
 
     @mcp.tool()
     async def analyze_stock(symbol: str, horizon: str = "1d") -> dict[str, Any]:
-        """Full trend evidence for one symbol, scored within the current universe.
-
-        If the symbol fails eligibility gates it is returned as ineligible with the
-        specific gate failures rather than a misleading score.
-        """
+        """Full trend evidence for one symbol; an ineligible symbol returns its gate
+        failures rather than a misleading score."""
         analysis = await service.analyze(symbol.upper(), as_of=await _as_of(), horizon=horizon)
         return _envelope(analysis.model_dump(mode="json"), model_version=TREND_MODEL_VERSION)
 
@@ -177,11 +146,8 @@ def build_server(
         start: str | None = None,
         end: str | None = None,
     ) -> dict[str, Any]:
-        """Evolution of a symbol's Trend Score over a time range (ISO-8601 UTC).
-
-        Defaults to the trailing 30 days. Reads persisted score snapshots; returns an
-        empty series until the worker has recorded snapshots for the symbol.
-        """
+        """Evolution of a symbol's Trend Score over an ISO-8601 UTC range (default the
+        trailing 30 days), read from persisted snapshots."""
         end_dt = _parse_iso(end) or utcnow()
         start_dt = _parse_iso(start) or (end_dt - timedelta(days=30))
         history = await service.score_history(
@@ -239,10 +205,9 @@ def _register_alert_tools(mcp, resources, envelope, as_of_fn):
     ) -> dict[str, Any]:
         """Store a structured alert rule for asynchronous evaluation by the scheduler.
 
-        Conditions are strings like "trend_score >= 85", "volume_ratio >= 2.0",
-        "research_score:GARP >= 75". All of ``all_conditions`` must hold and at least one
-        of ``any_conditions`` (if given). Scope by explicit ``symbols`` or a
-        ``watchlist_id``. Evaluation runs independently of any MCP connection.
+        Conditions are strings like "trend_score >= 85" or "research_score:GARP >= 75";
+        all of ``all_conditions`` and at least one of ``any_conditions`` must hold. Scope
+        by explicit ``symbols`` or a ``watchlist_id``.
         """
         rule = AlertRule(
             rule_id=uuid.uuid4().hex,
@@ -301,13 +266,9 @@ def _register_catalyst_tools(mcp, catalysts, envelope, as_of_fn):
 
     @mcp.tool()
     async def explain_move(symbol: str, lookback_days: int = 20) -> dict[str, Any]:
-        """Explain a symbol's recent notable price move with catalyst evidence.
-
-        Finds the largest 1-day move in the lookback window, describes it (magnitude,
-        direction, abnormal volume), and attaches ranked catalyst evidence from nearby
-        events (SEC filings), each labeled weak/moderate/strong. Returns competing
-        explanations and a causal-confidence label — correlation, never a proven cause.
-        """
+        """Explain a symbol's largest recent 1-day move with ranked catalyst evidence from
+        nearby SEC filings (weak/moderate/strong) and a causal-confidence label —
+        correlation, never a proven cause."""
         result = await catalysts.explain_move(
             symbol.upper(), as_of=await as_of_fn(), lookback_days=lookback_days
         )
@@ -324,14 +285,9 @@ def _register_research_tools(mcp, research, envelope, as_of_fn):
         limit: int = 20,
         min_confidence: float = 0.0,
     ) -> dict[str, Any]:
-        """Rank research candidates for a strategy (e.g. GARP).
-
-        Applies the strategy's hard gates, then scores eligible names on growth,
-        quality, valuation, momentum, and balance-sheet factors with risk penalties.
-        Fundamentals are point-in-time (SEC XBRL). Returns each candidate's score,
-        confidence, factor breakdown, penalties, and reason codes, plus the names
-        excluded by hard gates.
-        """
+        """Rank research candidates for a strategy (e.g. GARP): hard gates, then
+        cross-sectional factor scoring with penalties over point-in-time SEC fundamentals.
+        Returns each candidate's score, factor breakdown, and the names excluded by gates."""
         rank = await research.rank(
             strategy,
             as_of=await as_of_fn(),
@@ -351,12 +307,8 @@ def _register_research_tools(mcp, research, envelope, as_of_fn):
 
     @mcp.tool()
     async def compare_stocks(symbols: list[str], strategy: str = "GARP") -> dict[str, Any]:
-        """Side-by-side research scoring of specific symbols under a strategy.
-
-        Scores the given symbols cross-sectionally against each other, returning factor
-        breakdowns, penalties, and reason codes so the tradeoffs are explicit rather
-        than an unsupported single verdict.
-        """
+        """Side-by-side research scoring of specific symbols under a strategy, with factor
+        breakdowns, penalties, and reason codes."""
         cmp = await research.compare(
             [s.upper() for s in symbols], strategy=strategy, as_of=await as_of_fn()
         )

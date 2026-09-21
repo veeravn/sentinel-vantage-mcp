@@ -1,16 +1,6 @@
-"""SEC EDGAR fundamentals adapter.
-
-Uses SEC's public data APIs (no API key): the ticker->CIK map and the per-company XBRL
-``companyfacts`` document, which carries every reported concept as a point-in-time
-series. Each fact keeps its ``filed`` date so downstream logic can enforce point-in-time
-correctness (a backtest at date T sees only facts filed on or before T).
-
-SEC asks for a descriptive User-Agent with contact info and rate-limits aggressive
-clients; requests back off on 429/5xx. Concept-tag normalization across issuers happens
-in the domain layer, not here — this adapter returns facts faithfully, tagged as filed.
-
-Fact parsing is a pure function so it is unit-testable without network access.
-"""
+"""SEC EDGAR fundamentals adapter (no API key): the ticker->CIK map and the per-company
+XBRL ``companyfacts`` document, each fact keeping its ``filed`` date for point-in-time
+correctness. Requires a descriptive User-Agent; backs off on 429/5xx. Parsing is pure."""
 
 from __future__ import annotations
 
@@ -41,12 +31,8 @@ def extract_facts(
     *,
     taxonomies: Sequence[str] = ("us-gaap", "dei"),
 ) -> list[FundamentalFact]:
-    """Pure: pull the requested concept tags out of a companyfacts document.
-
-    Scans each taxonomy in ``taxonomies`` (us-gaap statement concepts plus the dei
-    cover-page namespace, which carries EntityCommonStockSharesOutstanding). A wanted
-    tag is matched wherever it appears; our tag set has no us-gaap/dei name collisions.
-    """
+    """Pure: pull the requested concept tags from a companyfacts document, scanning each
+    taxonomy (us-gaap statement concepts plus the dei cover-page namespace)."""
     wanted = set(tags)
     all_facts = companyfacts.get("facts") or {}
     out: list[FundamentalFact] = []

@@ -1,9 +1,6 @@
-"""CatalystService — detect a notable move and correlate it with nearby events.
-
-Implements the ``explain_move`` use case: find the largest recent price move, describe
-it (magnitude, direction, abnormal volume), then attach ranked catalyst evidence from
-stored events. It labels a causal confidence but never asserts causation.
-"""
+"""CatalystService — the ``explain_move`` use case: find the largest recent price move,
+describe it, and attach ranked catalyst evidence from stored events, labeling a causal
+confidence but never asserting causation."""
 
 from __future__ import annotations
 

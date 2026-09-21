@@ -1,11 +1,6 @@
-"""Entrypoint: one-shot idempotent data load (sv-bootstrap).
-
-Loads market bars (Polygon), fundamentals, and filing events — but only if the database
-is empty, so it is safe to run on every `up`. Data persists in the Postgres volume, so a
-second run is a no-op unless SV_BOOTSTRAP_FORCE is set. SEC steps are skipped (with a
-warning) when SV_SEC_USER_AGENT is unset, and are best-effort so a failure there does not
-block the market backfill.
-"""
+"""One-shot idempotent data load (``sv-bootstrap``): market bars, fundamentals, and filing
+events, but only when the database is empty (a no-op on re-run unless SV_BOOTSTRAP_FORCE).
+SEC steps are best-effort and skipped without SV_SEC_USER_AGENT."""
 
 from __future__ import annotations
 

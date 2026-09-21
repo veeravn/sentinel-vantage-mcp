@@ -1,13 +1,6 @@
-"""Bearer-token auth for the MCP HTTP endpoint (Phase 6).
-
-A pure-ASGI middleware: it inspects the ``Authorization`` header on requests to the MCP
-path and returns 401 when the token is missing or wrong, otherwise passes the request
-through untouched. Implemented at the ASGI layer (not Starlette's BaseHTTPMiddleware) so
-it never wraps or buffers the streamable-HTTP / SSE response body.
-
-The token is compared in constant time. Auth is opt-in: with no token configured the
-middleware is not installed, so local development stays keyless.
-"""
+"""Bearer-token auth for the MCP endpoint: a pure-ASGI middleware (not BaseHTTPMiddleware,
+so it never buffers the SSE response) that 401s a missing/wrong token, compared in
+constant time. Opt-in — not installed when no token is configured."""
 
 from __future__ import annotations
 

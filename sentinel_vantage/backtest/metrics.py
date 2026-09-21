@@ -43,11 +43,8 @@ def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
 
 
 def assign_buckets(scored: Sequence[tuple[str, float]], n_buckets: int) -> dict[str, int]:
-    """Split symbols into equal-count quantile buckets by score.
-
-    Bucket 0 is the lowest-scoring group, ``n_buckets - 1`` the highest. Ordering breaks
-    ties by symbol so assignment is deterministic.
-    """
+    """Split symbols into equal-count quantile buckets by score (0 = lowest), breaking ties
+    by symbol for determinism."""
     order = sorted(scored, key=lambda t: (t[1], t[0]))
     m = len(order)
     out: dict[str, int] = {}

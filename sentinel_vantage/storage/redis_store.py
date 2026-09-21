@@ -1,9 +1,5 @@
-"""Redis access.
-
-Phase 0 provides connect/close/ping. Later phases add the latest-score and rank
-sorted-set helpers (rank:trend:{horizon}, latest:trend:{symbol}:{horizon}, ...).
-Module is named ``redis_store`` to avoid shadowing the ``redis`` package.
-"""
+"""Redis access (connect/close/ping and the rank/latest-score helpers). Named
+``redis_store`` to avoid shadowing the ``redis`` package."""
 
 from __future__ import annotations
 

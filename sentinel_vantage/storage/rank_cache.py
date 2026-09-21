@@ -1,12 +1,6 @@
-"""Redis latest-score and rank cache.
-
-The worker publishes each scoring cycle here so the query path can answer trending
-scans in well under a second without recomputing (design NFR: <2s scans). Keys follow
-the design's illustrative scheme:
-
-    rank:trend:{horizon}              sorted set, score -> symbol
-    latest:trend:{symbol}:{horizon}   JSON of the latest TrendResult
-"""
+"""Redis latest-score and rank cache the worker publishes each cycle, so the query path
+answers trending scans without recomputing. Keys: ``rank:trend:{horizon}`` (sorted set)
+and ``latest:trend:{symbol}:{horizon}`` (JSON)."""
 
 from __future__ import annotations
 

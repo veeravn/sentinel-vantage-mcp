@@ -1,17 +1,6 @@
-"""trend-v0 scoring.
-
-The Trend Score is a percentile-normalized, horizon-specific signal. Each factor is
-winsorized and z-scored *cross-sectionally* across the eligible universe, combined with
-fixed weights, and squashed through a sigmoid to 0-100 (design section 10.2).
-
-trend-v0 uses the four factors computable from the Phase 1 feature set. Attention
-velocity and catalyst strength (design factors) arrive with news/catalyst data in a
-later phase; adding them will create trend-v1, not mutate trend-v0. Realized volatility
-and extreme moves are surfaced as risk flags, not as positive score contributors.
-
-Determinism: pure functions, stable ordering, rounded outputs. Same inputs -> same
-scores, which is what the replay/acceptance test AT-1 verifies.
-"""
+"""trend-v0 scoring: each factor is winsorized and z-scored cross-sectionally across the
+eligible universe, combined with fixed weights, and squashed through a sigmoid to 0-100.
+Pure and deterministic; volatility/extreme moves are risk flags, not score contributors."""
 
 from __future__ import annotations
 
@@ -26,7 +15,7 @@ from sentinel_vantage.core.versioning import TREND_MODEL_VERSION
 from sentinel_vantage.domain.features.models import FeatureSet
 from sentinel_vantage.domain.trend.models import TrendResult
 
-# Fixed weights (trend-v0). Sum to 1.0.
+# Fixed weights, sum to 1.0.
 TREND_V0_WEIGHTS: dict[str, float] = {
     "momentum": 0.35,
     "volume": 0.30,
@@ -38,7 +27,7 @@ WINSOR_Z = 3.0
 
 
 class TrendScoringConfig(BaseModel):
-    # Reason-code thresholds (in z units unless noted).
+    # Reason-code thresholds (z units).
     volume_hot_z: float = 1.5
     volume_cold_z: float = -1.5
     rs_strong_z: float = 1.0
@@ -47,8 +36,8 @@ class TrendScoringConfig(BaseModel):
     momentum_weak_z: float = -1.0
     acceleration_breakout_z: float = 1.0
     # Risk-flag thresholds (raw units).
-    extended_move_abs_return_1d: float = 0.15  # +/-15% in a day
-    high_realized_vol_20d: float = 0.05  # 5% daily stdev
+    extended_move_abs_return_1d: float = 0.15
+    high_realized_vol_20d: float = 0.05
 
 
 DEFAULT_SCORING = TrendScoringConfig()
@@ -69,7 +58,7 @@ def _momentum_raw(fs: FeatureSet) -> float | None:
         return fs.return_1d
     if fs.return_1d is None:
         return fs.return_5d
-    # Blend horizons so a single bar cannot dominate (design note).
+    # Blend horizons so a single bar cannot dominate.
     return 0.6 * fs.return_1d + 0.4 * fs.return_5d
 
 
@@ -149,11 +138,10 @@ def score_universe(
     config: TrendScoringConfig = DEFAULT_SCORING,
 ) -> list[TrendResult]:
     """Score every eligible symbol cross-sectionally. Returns results sorted by score desc."""
-    symbols = sorted(features_by_symbol)  # stable ordering for determinism
+    symbols = sorted(features_by_symbol)  # deterministic ordering
     if not symbols:
         return []
 
-    # One z-map per factor across the universe.
     z_by_factor = {
         factor: _zscores({s: _factor_raw(features_by_symbol[s])[factor] for s in symbols})
         for factor in TREND_V0_WEIGHTS
@@ -180,7 +168,7 @@ def score_universe(
             )
         )
 
-    # Percentile rank within the scored set (deterministic; ties share the lower rank).
+    # Percentile rank within the scored set (ties share the lower rank).
     scores_sorted = sorted(r.score for r in results)
     n = len(scores_sorted)
     for r in results:

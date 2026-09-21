@@ -12,12 +12,8 @@ log = get_logger("universe")
 
 
 async def seed_universe(db: Database, securities: Sequence[SeedSecurity] = SEED_SECURITIES) -> int:
-    """Upsert reference securities. Idempotent; returns the number written.
-
-    ``active_from`` is left NULL (treated as always-active for now). Delisting is
-    recorded later by setting ``active_to`` rather than deleting the row, so the
-    historical universe stays intact for backtests.
-    """
+    """Upsert reference securities (idempotent; returns the number written). Delisting is
+    recorded by setting ``active_to``, never by deleting the row."""
     rows = [
         (
             s["symbol"],

@@ -1,11 +1,6 @@
-"""Wire the backtest engine to real stored data.
-
-Loads full daily history once, then drives the engine with point-in-time score
-functions (the trend/research services, which already honor ``as_of``) and a
-forward-return function derived from future bars. Forward returns are the one place a
-backtest legitimately looks past ``as_of`` — because ``as_of`` is historical, that
-"future" is still in the past relative to now.
-"""
+"""Wire the backtest engine to stored data: load full daily history once, then drive the
+engine with point-in-time score functions and a forward-return function derived from
+future bars (the one legitimate look past a historical ``as_of``)."""
 
 from __future__ import annotations
 

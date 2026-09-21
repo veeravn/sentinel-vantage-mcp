@@ -1,8 +1,4 @@
-"""Central configuration.
-
-All settings load from environment variables prefixed ``SV_`` (or a local ``.env``).
-Secrets (provider API keys) live here and are never returned through MCP tools.
-"""
+"""Central configuration: all settings load from ``SV_``-prefixed env vars (or ``.env``)."""
 
 from __future__ import annotations
 
@@ -22,45 +18,34 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "production"] = "development"
 
-    # Storage
     postgres_dsn: str = "postgresql://sentinel:sentinel@localhost:5432/sentinel"
     redis_url: str = "redis://localhost:6379/0"
 
-    # Market-data provider
     provider_name: str = "polygon"
     polygon_api_key: str = ""
-    # Recorded as feed provenance on every bar and score.
     feed_mode: Literal["delayed", "realtime"] = "delayed"
-    # Proactively pace Polygon REST calls to stay under the tier quota. 5 = free tier;
-    # set to 0 (or a large number) for paid tiers with no meaningful limit.
+    # 5 = free tier (5 req/min); 0 or large disables pacing on paid tiers.
     polygon_requests_per_minute: int = 5
 
-    # SEC EDGAR (fundamentals). SEC asks for a descriptive User-Agent with contact info;
-    # set SV_SEC_USER_AGENT to "Your Name your@email" for live requests.
+    # SEC requires a descriptive UA: set SV_SEC_USER_AGENT to "Your Name your@email".
     sec_user_agent: str = "sentinel-vantage-mcp/0.1 (set SV_SEC_USER_AGENT)"
 
-    # MCP server (streamable-http transport)
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8080
-    # Bearer token required on requests to the MCP endpoint. Empty = auth disabled
-    # (local dev only). Set SV_MCP_AUTH_TOKEN before exposing the server on a network.
+    # Empty = auth disabled (local dev only); set before exposing on a network.
     mcp_auth_token: str = ""
 
-    # Worker
     scoring_interval_seconds: int = 60
-    backfill_days: int = 220  # calendar days (~150 trading days) pulled on backfill
+    backfill_days: int = 220  # calendar days (~150 trading days)
     trend_horizon: str = "1d"
 
-    # Scheduler
     alert_interval_seconds: int = 300
 
     @property
     def feed_label(self) -> str:
-        """Human-readable feed provenance stamped onto outputs."""
         return f"{self.provider_name}/{self.feed_mode}"
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """Process-wide singleton. Cached so env is read once per process."""
     return Settings()

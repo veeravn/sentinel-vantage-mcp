@@ -1,9 +1,6 @@
-"""Resolve the metric values a rule references, for a set of symbols at an as_of.
-
-Pulls trend metrics from the trend scan, per-strategy research scores from the research
-ranking, and event counts from stored events — only computing what the rules actually
-reference. Missing values are simply omitted (a rule never fires on absent data).
-"""
+"""Resolve the metric values a rule references (trend metrics, per-strategy research
+scores, event counts) for a set of symbols at an as_of, computing only what the rules
+reference and omitting anything missing."""
 
 from __future__ import annotations
 

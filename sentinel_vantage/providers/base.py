@@ -1,10 +1,5 @@
-"""Provider contracts and the normalized event schemas they emit.
-
-These mirror the interfaces in the design (section 8). Every normalized bar/quote
-carries ``provider`` and ``feed`` provenance so downstream storage and scores can
-record exactly where the number came from. Concrete adapters (Polygon, SEC, news)
-implement these in later phases.
-"""
+"""Provider contracts and the normalized schemas they emit; every bar/quote carries
+``provider`` and ``feed`` provenance."""
 
 from __future__ import annotations
 
@@ -15,9 +10,6 @@ from datetime import date, datetime
 from pydantic import BaseModel, Field
 
 
-# --------------------------------------------------------------------------- #
-# Normalized market-data schemas
-# --------------------------------------------------------------------------- #
 class Bar(BaseModel):
     symbol: str
     ts: datetime = Field(description="UTC start of the bar interval.")
@@ -56,11 +48,8 @@ class Session(BaseModel):
     is_open: bool = True
 
 
-# --------------------------------------------------------------------------- #
-# Contracts
-# --------------------------------------------------------------------------- #
 class MarketDataProvider(ABC):
-    """Real-time + historical market data (design section 8.1)."""
+    """Real-time + historical market data."""
 
     name: str
 
@@ -86,12 +75,8 @@ class MarketDataProvider(ABC):
 
 
 class FundamentalFact(BaseModel):
-    """One normalized, point-in-time XBRL fact.
-
-    ``filed_at`` is the instant the fact became public — the guard against look-ahead
-    bias. History is append-only: a restated value is a new fact with a later
-    ``filed_at``, never an overwrite (design sections 8.2, 13, 17).
-    """
+    """One normalized, point-in-time XBRL fact. ``filed_at`` (when it became public)
+    guards against look-ahead bias; history is append-only, a restatement is a new fact."""
 
     cik: str
     taxonomy: str = "us-gaap"
@@ -109,7 +94,7 @@ class FundamentalFact(BaseModel):
 
 
 class FundamentalsProvider(ABC):
-    """Point-in-time fundamentals/filings (design section 8.2)."""
+    """Point-in-time fundamentals/filings."""
 
     name: str
 
@@ -125,6 +110,6 @@ class FundamentalsProvider(ABC):
 
 
 class NewsProvider(ABC):
-    """News and corporate-event adapter (design section 8.3). Phase 3."""
+    """News and corporate-event adapter."""
 
     name: str

@@ -1,10 +1,5 @@
-"""Eligibility gates (design section 10.1).
-
-Scores are produced only when minimum data-quality and investability gates pass. A
-failing symbol is *ineligible* — it is excluded from scoring and reported with its gate
-failures, never given a zero-but-normal-confidence score. Thresholds are versioned
-config so they can evolve deliberately.
-"""
+"""Eligibility gates: a symbol failing a data-quality or investability gate is excluded
+from scoring and reported with its gate failures, never given a misleading score."""
 
 from __future__ import annotations
 
@@ -21,7 +16,6 @@ class TrendGateConfig(BaseModel):
 
 DEFAULT_GATES = TrendGateConfig()
 
-# Gate failure reason codes.
 GATE_PRICE = "GATE_PRICE_BELOW_MIN"
 GATE_LIQUIDITY = "GATE_LIQUIDITY_BELOW_MIN"
 GATE_HISTORY = "GATE_INSUFFICIENT_HISTORY"
@@ -51,8 +45,7 @@ def evaluate_gates(
         or features.dollar_volume_median_20d < config.min_dollar_volume_median_20d
     ):
         failures.append(GATE_LIQUIDITY)
-    # Core recent-data check: without a 1d return or a volume ratio the symbol cannot be
-    # scored honestly at this horizon (acceptance test AT-2).
+    # Without a 1d return or volume ratio the symbol cannot be scored at this horizon.
     if features.return_1d is None or features.volume_ratio is None:
         failures.append(GATE_MISSING_DATA)
 

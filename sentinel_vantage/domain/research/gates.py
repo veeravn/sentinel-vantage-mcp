@@ -1,9 +1,5 @@
-"""Research hard gates (design section 10.3).
-
-A strategy declares hard eligibility rules; a symbol failing any is ineligible for that
-strategy and reported with its failures, never given a misleading score. Distinct from
-the trend gates — a name can trend strongly yet fail a research gate (acceptance AT-3).
-"""
+"""Research hard gates: a symbol failing any of a strategy's hard eligibility rules is
+ineligible for that strategy and reported with its failures. Distinct from trend gates."""
 
 from __future__ import annotations
 

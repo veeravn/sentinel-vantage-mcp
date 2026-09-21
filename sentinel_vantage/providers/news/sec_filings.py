@@ -1,12 +1,6 @@
-"""SEC filings as structured events.
-
-Uses SEC's public ``submissions`` API (no key) to turn a company's recent material
-filings (10-K, 10-Q, 8-K) into normalized Events. 8-Ks in particular are the "material
-event" filing and the most catalyst-relevant. We store identifiers, form type, filing
-time, and a link — not licensed full text (design section 8.3).
-
-Parsing is a pure function so it is unit-testable without network access.
-"""
+"""SEC filings (10-K/10-Q/8-K) as normalized Events via the public ``submissions`` API
+(no key): identifiers, form type, filing time, and a link — not licensed full text.
+Parsing is pure."""
 
 from __future__ import annotations
 

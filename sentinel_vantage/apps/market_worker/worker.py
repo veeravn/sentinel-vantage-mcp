@@ -1,10 +1,5 @@
-"""Market worker lifecycle.
-
-The always-on monitoring path: on a cadence it scores the latest stored session and
-publishes ranks — independent of any MCP client. Backfill (sv-backfill) loads history;
-this worker turns that history into scores. Live minute-stream ingestion is a later
-refinement; the daily-horizon MVP scores as-of the most recent stored bar.
-"""
+"""Market worker lifecycle — the always-on path that, on a cadence, scores the latest
+stored session and publishes ranks, independent of any MCP client."""
 
 from __future__ import annotations
 

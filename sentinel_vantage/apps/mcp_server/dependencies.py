@@ -1,10 +1,6 @@
-"""Wiring for the MCP server's domain dependencies.
-
-The server reads the same Postgres/Redis state the worker writes. ``MCPResources`` owns
-the Database + RedisStore lifecycle (connected by the server's lifespan) and builds a
-Postgres-backed TrendService plus the Redis rank cache. Tests inject an in-memory
-service instead, so they need neither.
-"""
+"""Wiring for the MCP server's dependencies: ``MCPResources`` owns the Database + RedisStore
+lifecycle and builds the Postgres-backed services plus the Redis rank cache the server
+reads (tests inject in-memory services instead)."""
 
 from __future__ import annotations
 

@@ -1,10 +1,6 @@
-"""Catalyst correlation (design section 12).
-
-Given a price move and nearby events, score each event's link to the move by temporal
-proximity, event relevance, and novelty, and label an evidence strength. Deliberately
-conservative: a catalyst must plausibly *precede* the move, coincidental/generic events
-are surfaced as weak context, and nothing is called a cause.
-"""
+"""Catalyst correlation: score each nearby event's link to a price move by temporal
+proximity, relevance, and novelty. Conservative — a catalyst must plausibly precede the
+move, and nothing is called a cause."""
 
 from __future__ import annotations
 
@@ -71,8 +67,8 @@ def correlate(
     evidence: list[CatalystEvidence] = []
     for e in events:
         lead_days = (move_time - e.event_time).total_seconds() / 86400.0
-        if lead_days < -1.0 or lead_days > window_days:
-            continue  # after the move, or too far before
+        if lead_days < -1.0 or lead_days > window_days:  # after the move, or too far before
+            continue
         temporal = _proximity(move_time, e.event_time, window_days)
         relevance = _RELEVANCE.get(e.type, 0.3)
         novelty = _NOVELTY.get(e.type, 0.5)
@@ -90,7 +86,7 @@ def correlate(
                 notes=_notes(e, move_time),
             )
         )
-    # Rank by a composite of the three scores; ties broken by recency.
+    # Rank by the composite of the three scores; ties broken by recency.
     evidence.sort(
         key=lambda c: (
             -(c.temporal_proximity_score * c.relevance_score * c.novelty_score),

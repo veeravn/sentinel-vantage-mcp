@@ -1,9 +1,5 @@
-"""Port for persisting feature snapshots.
-
-Storing the feature inputs (not just the score) is what lets a past score be
-reconstructed and backtested (design section 13). Kept as a Protocol so the domain
-stays independent of storage.
-"""
+"""Port (Protocol) for persisting feature snapshots, so a past score can be reconstructed
+and backtested from its inputs."""
 
 from __future__ import annotations
 
