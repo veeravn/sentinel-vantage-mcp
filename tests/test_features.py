@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from conftest import as_of_of, make_daily_bars
 
 from sentinel_vantage.domain.features.engine import compute_features
@@ -30,7 +32,6 @@ def test_missing_benchmark_lowers_confidence_and_rs():
     fs = compute_features("AAA", bars, as_of=as_of_of(bars), benchmark_bars=None)
     assert fs.relative_strength_1d is None
     assert fs.benchmark_available is False
-    # completeness 4/5 * history 0.8 * benchmark 0.7
     assert fs.confidence < 1.0
 
 
@@ -40,3 +41,26 @@ def test_single_bar_yields_no_returns():
     assert fs.return_1d is None
     assert fs.volume_ratio is None
     assert fs.completeness < 0.5
+
+
+def _long(symbol, n=130):
+    return make_daily_bars(symbol, [100.0 + i * 0.1 for i in range(n)])
+
+
+def test_full_fresh_history_is_confident_and_shorter_history_lowers_it():
+    long_bars, short_bars = _long("A", 130), _long("A", 70)
+    bench = make_daily_bars("SPY", [100.0] * 130)
+    full = compute_features("A", long_bars, as_of=as_of_of(long_bars), benchmark_bars=bench)
+    short = compute_features("A", short_bars, as_of=as_of_of(short_bars), benchmark_bars=bench)
+    assert full.confidence == 1.0
+    assert short.confidence < full.confidence
+
+
+def test_stale_latest_bar_lowers_confidence():
+    bars = _long("A", 130)
+    bench = make_daily_bars("SPY", [100.0] * 130)
+    fresh = compute_features("A", bars, as_of=as_of_of(bars), benchmark_bars=bench)
+    stale = compute_features(
+        "A", bars, as_of=as_of_of(bars) + timedelta(days=8), benchmark_bars=bench
+    )
+    assert stale.confidence < fresh.confidence

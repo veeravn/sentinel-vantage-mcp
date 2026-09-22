@@ -11,6 +11,24 @@ from sentinel_vantage.providers.base import Bar
 
 FULL_CONFIDENCE_DAYS = 120
 _SCORING_FACTORS = 5
+_HISTORY_FLOOR = 0.5
+_FRESHNESS_FLOOR = 0.4
+_STALE_DAYS = 10
+_BASELINE_DAYS = 20
+_BASELINE_FLOOR = 0.6
+
+
+def _clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _freshness_factor(staleness_days: int) -> float:
+    """1.0 when the latest bar is current, decaying to a floor as it lags ``as_of``."""
+    if staleness_days <= 1:
+        return 1.0
+    if staleness_days >= _STALE_DAYS:
+        return _FRESHNESS_FLOOR
+    return 1.0 - (1.0 - _FRESHNESS_FLOOR) * (staleness_days - 1) / (_STALE_DAYS - 1)
 
 
 def _sorted(bars: Sequence[Bar]) -> list[Bar]:
@@ -79,9 +97,18 @@ def compute_features(
     computable = sum(1 for f in factors if f is not None)
     completeness = round(computable / _SCORING_FACTORS, 4)
 
-    history_factor = 1.0 if n >= FULL_CONFIDENCE_DAYS else 0.8
+    history_factor = _clamp(n / FULL_CONFIDENCE_DAYS, _HISTORY_FLOOR, 1.0)
     benchmark_factor = 1.0 if benchmark_available else 0.7
-    confidence = round(completeness * history_factor * benchmark_factor, 4)
+    freshness_factor = _freshness_factor((as_of.date() - last.ts.date()).days)
+    baseline_factor = (
+        _clamp(len(baseline) / _BASELINE_DAYS, _BASELINE_FLOOR, 1.0)
+        if volume_ratio is not None
+        else 1.0
+    )
+    confidence = round(
+        completeness * history_factor * benchmark_factor * freshness_factor * baseline_factor,
+        4,
+    )
 
     return FeatureSet(
         symbol=symbol,

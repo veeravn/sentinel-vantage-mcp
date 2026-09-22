@@ -112,10 +112,11 @@ In progress:
   backs up the frequently-absent us-gaap share count; and gross profit is derived from
   revenue − cost of revenue (period-aligned) when `GrossProfit` isn't tagged.
 - Full-universe backfill so the backtest has real breadth (fast on a paid Polygon tier).
-- Granular trend confidence: factor in bar freshness and per-feature quality so it varies
-  meaningfully instead of saturating at 1.0 for full-history large caps (today it's a
-  coarse completeness × history × benchmark product; it is data-quality, not a calibrated
-  probability).
+- ✅ Granular trend confidence — the data-quality confidence now multiplies completeness,
+  a *continuous* history-depth factor, benchmark availability, bar freshness (staleness of
+  the symbol's latest bar vs `as_of`, point-in-time safe), and volume-baseline coverage, so
+  it spreads across the universe (a thin/stale/short-history name drops well below 1.0)
+  instead of every full-history large cap saturating at 1.0.
 - ✅ Scheduled daily backfill — the scheduler runs a daily UTC cron
   (`SV_DAILY_BACKFILL_ENABLED`, `SV_DAILY_BACKFILL_HOUR`/`_MINUTE`/`_DAYS`) that pulls the
   latest bars so the scored "as of" tracks the latest session without a manual

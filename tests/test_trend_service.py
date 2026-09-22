@@ -48,7 +48,7 @@ async def test_scan_is_deterministic_replay():
 async def test_min_confidence_filter():
     repo = _repo()
     svc = TrendService(repo)
-    # Nothing reaches confidence > 0.99 here (history < 120 days -> 0.8 factor).
+    # Short history (< 120 days) lowers the history factor, so nothing clears 0.99.
     scan = await svc.scan(as_of=_as_of(repo), min_confidence=0.99)
     assert scan.results == []
 
