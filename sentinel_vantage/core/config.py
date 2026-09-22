@@ -44,6 +44,24 @@ class Settings(BaseSettings):
 
     alert_interval_seconds: int = 300
 
+    # Scheduled daily backfill (scheduler process). Off by default; hour/minute are UTC.
+    daily_backfill_enabled: bool = False
+    daily_backfill_hour: int = 23
+    daily_backfill_minute: int = 0
+    daily_backfill_days: int = 7
+
+    # Alert delivery. "none" (default) sends nothing; "email" uses SMTP; "webhook" POSTs
+    # a Slack/Mattermost/Discord/ntfy-compatible message to SV_WEBHOOK_URL.
+    notify_channel: Literal["none", "email", "webhook"] = "none"
+    webhook_url: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_to: str = ""
+    smtp_starttls: bool = True
+
     @property
     def feed_label(self) -> str:
         return f"{self.provider_name}/{self.feed_mode}"

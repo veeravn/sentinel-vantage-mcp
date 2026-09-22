@@ -102,7 +102,10 @@ In progress:
   populates), and publishes per-strategy ranks to a Redis cache that
   `find_research_candidates` serves warm (`SV_RESEARCH_STRATEGIES`,
   `SV_RESEARCH_SCORING_INTERVAL_SECONDS`).
-- Notification delivery for alerts (email / Slack / push).
+- ✅ Notification delivery for alerts — the scheduler delivers fired alerts via
+  `SV_NOTIFY_CHANNEL`: `webhook` (Slack/Mattermost/Discord/ntfy-compatible `SV_WEBHOOK_URL`)
+  or `email` (SMTP `SV_SMTP_*`); `none` by default. Delivery failures are logged, never
+  lose the persisted alert.
 - ✅ XBRL tag-coverage refinement — expanded us-gaap candidate lists (ASC 606 revenue
   variants, combined basic/diluted EPS, NCI-inclusive equity, capital-lease debt); the
   SEC adapter now also reads the `dei` taxonomy so `EntityCommonStockSharesOutstanding`
@@ -113,5 +116,7 @@ In progress:
   meaningfully instead of saturating at 1.0 for full-history large caps (today it's a
   coarse completeness × history × benchmark product; it is data-quality, not a calibrated
   probability).
-- Scheduled daily backfill so the scored "as of" tracks the latest session automatically
-  (today `as_of` only advances when `sv-backfill` is re-run; no live minute-stream ingest).
+- ✅ Scheduled daily backfill — the scheduler runs a daily UTC cron
+  (`SV_DAILY_BACKFILL_ENABLED`, `SV_DAILY_BACKFILL_HOUR`/`_MINUTE`/`_DAYS`) that pulls the
+  latest bars so the scored "as of" tracks the latest session without a manual
+  `sv-backfill`. Off by default; still no live minute-stream ingest.
