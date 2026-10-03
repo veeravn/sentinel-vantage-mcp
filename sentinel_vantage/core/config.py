@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     smtp_to: str = ""
     smtp_starttls: bool = True
 
+    # Agent LLM. "anthropic" uses the Messages API; "openai_compat" targets any OpenAI-style
+    # /chat/completions server (default base URL is a local Ollama).
+    llm_backend: Literal["anthropic", "openai_compat"] = "anthropic"
+    llm_model: str = "claude-haiku-4-5-20251001"
+    anthropic_api_key: str = ""
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_api_key: str = ""
+    agent_max_steps: int = 8
+    agent_max_total_tokens: int = 100_000
+
     @property
     def feed_label(self) -> str:
         return f"{self.provider_name}/{self.feed_mode}"
