@@ -39,6 +39,7 @@ sv-fundamentals = "sentinel_vantage.apps.market_worker.fundamentals_backfill:mai
 sv-events = "sentinel_vantage.apps.market_worker.events_backfill:main"
 sv-bootstrap = "sentinel_vantage.apps.bootstrap:main"
 sv-backtest = "sentinel_vantage.apps.backtest_cli:main"
+sv-agent = "sentinel_vantage.apps.agent_cli:main"
 
 [build-system]
 requires = ["hatchling"]
