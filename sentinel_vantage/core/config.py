@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     agent_max_steps: int = 8
     agent_max_total_tokens: int = 100_000
 
+    # Agent-written daily brief (scheduler process, Mon-Fri, UTC). Off by default; needs an
+    # LLM backend and delivers via SV_NOTIFY_CHANNEL.
+    daily_brief_enabled: bool = False
+    daily_brief_hour: int = 13
+    daily_brief_minute: int = 0
+
     @property
     def feed_label(self) -> str:
         return f"{self.provider_name}/{self.feed_mode}"

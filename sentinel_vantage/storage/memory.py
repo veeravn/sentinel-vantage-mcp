@@ -196,3 +196,16 @@ class InMemoryAlertEventRepository:
         ]
         out.sort(key=lambda e: e.created_at, reverse=True)
         return out[:limit]
+
+
+class InMemoryAgentRunRepository:
+    def __init__(self) -> None:
+        self.runs: list = []
+
+    async def save_run(self, run) -> None:
+        if not any(r.run_id == run.run_id for r in self.runs):
+            self.runs.append(run)
+
+    async def list_runs(self, *, kind=None, limit=20):
+        out = [r for r in self.runs if kind is None or r.kind == kind]
+        return sorted(out, key=lambda r: r.started_at, reverse=True)[:limit]

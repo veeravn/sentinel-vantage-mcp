@@ -228,3 +228,83 @@ async def test_mcp_tool_source_lists_and_calls():
     assert {"get_status", "analyze_stock"} <= names
     text, is_error = await source.call("get_status", {})
     assert not is_error and json.loads(text)
+
+
+async def test_run_is_logged_with_trace():
+    from sentinel_vantage.storage.memory import InMemoryAgentRunRepository
+
+    runs = InMemoryAgentRunRepository()
+    llm = ScriptedLLM([_call(), LLMResponse("done", input_tokens=2, output_tokens=1)])
+    result = await AgentRunner(llm, FakeTools(), runs=runs, backend="fake").run("q", kind="adhoc")
+    [row] = await runs.list_runs()
+    assert row.run_id == result.run_id
+    assert (row.kind, row.status, row.answer, row.backend, row.model) == (
+        "adhoc",
+        "answered",
+        "done",
+        "fake",
+        "fake",
+    )
+    assert row.steps == 2 and row.tool_trace[0]["name"] == "get_status"
+    assert "ok" in row.tool_trace[0]["output_preview"]
+
+
+async def test_failed_run_is_logged_and_reraised():
+    from sentinel_vantage.storage.memory import InMemoryAgentRunRepository
+
+    class FailingLLM(ScriptedLLM):
+        async def complete(self, **kwargs):
+            raise LLMError("boom")
+
+    runs = InMemoryAgentRunRepository()
+    with pytest.raises(LLMError):
+        await AgentRunner(FailingLLM([]), FakeTools(), runs=runs).run("q")
+    [row] = await runs.list_runs()
+    assert row.status == "error" and row.error == "boom"
+
+
+async def test_run_log_failure_does_not_fail_run():
+    class BrokenRepo:
+        async def save_run(self, run):
+            raise RuntimeError("db down")
+
+    llm = ScriptedLLM([LLMResponse("fine")])
+    result = await AgentRunner(llm, FakeTools(), runs=BrokenRepo()).run("q")
+    assert result.answer == "fine"
+
+
+class _Notifier:
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, str]] = []
+
+    async def send(self, subject, body):
+        self.sent.append((subject, body))
+
+
+async def test_daily_brief_delivers_and_logs():
+    from sentinel_vantage.agent.brief import BRIEF_KIND, BRIEF_SUBJECT, run_daily_brief
+    from sentinel_vantage.storage.memory import InMemoryAgentRunRepository
+
+    runs, notifier = InMemoryAgentRunRepository(), _Notifier()
+    llm = ScriptedLLM([_call(), LLMResponse("Market up. NVDA 90 (conf 0.8).")])
+    runner = AgentRunner(llm, FakeTools(), runs=runs)
+    await run_daily_brief(runner, notifier)
+    assert notifier.sent == [(BRIEF_SUBJECT, "Market up. NVDA 90 (conf 0.8).")]
+    assert (await runs.list_runs(kind=BRIEF_KIND))[0].status == "answered"
+
+
+async def test_daily_brief_not_delivered_when_incomplete():
+    from sentinel_vantage.agent.brief import run_daily_brief
+
+    notifier = _Notifier()
+    llm = ScriptedLLM([_call(id=f"c{i}") for i in range(2)])
+    result = await run_daily_brief(AgentRunner(llm, FakeTools(), max_steps=2), notifier)
+    assert result.stop_reason == "max_steps"
+    assert notifier.sent == []
+
+
+async def test_brief_job_is_read_only_allowlist():
+    from sentinel_vantage.agent.brief import BRIEF_TOOLS
+    from sentinel_vantage.agent.tools import WRITE_TOOLS
+
+    assert not BRIEF_TOOLS & WRITE_TOOLS
