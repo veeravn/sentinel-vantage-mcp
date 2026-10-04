@@ -286,10 +286,10 @@ async def test_daily_brief_delivers_and_logs():
     from sentinel_vantage.storage.memory import InMemoryAgentRunRepository
 
     runs, notifier = InMemoryAgentRunRepository(), _Notifier()
-    llm = ScriptedLLM([_call(), LLMResponse("Market up. NVDA 90 (conf 0.8).")])
+    llm = ScriptedLLM([_call(), LLMResponse("Market summary: no notable moves.")])
     runner = AgentRunner(llm, FakeTools(), runs=runs)
     await run_daily_brief(runner, notifier)
-    assert notifier.sent == [(BRIEF_SUBJECT, "Market up. NVDA 90 (conf 0.8).")]
+    assert notifier.sent == [(BRIEF_SUBJECT, "Market summary: no notable moves.")]
     assert (await runs.list_runs(kind=BRIEF_KIND))[0].status == "answered"
 
 

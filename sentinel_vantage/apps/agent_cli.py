@@ -47,6 +47,8 @@ async def _run(args: argparse.Namespace) -> int:
         await resources.close()
 
     print(result.answer)
+    if result.grounding is not None and not result.grounding.ok:
+        print(f"\n[grounding warning: {result.grounding.feedback()}]")
     tools = ", ".join(t.name for t in result.tool_trace) or "none"
     print(
         f"\n[{result.stop_reason} · {result.steps} steps · tools: {tools} · "
