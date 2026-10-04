@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Literal
 
+from sentinel_vantage.agent.grounding import GroundingReport, check_grounding
 from sentinel_vantage.agent.llm import LLMClient, Message, ToolCall, ToolResult, ToolSpec
 from sentinel_vantage.agent.prompts import SYSTEM_PROMPT
 from sentinel_vantage.agent.runs import AgentRun, AgentRunRepository
@@ -37,6 +38,8 @@ class AgentResult:
     output_tokens: int
     tool_trace: list[ToolTrace] = field(default_factory=list)
     run_id: str = ""
+    tool_outputs: list[str] = field(default_factory=list, repr=False)
+    grounding: GroundingReport | None = None
 
 
 class AgentRunner:
@@ -54,6 +57,7 @@ class AgentRunner:
         allowed_tools: frozenset[str] | None = None,
         runs: AgentRunRepository | None = None,
         backend: str = "",
+        grounding_retries: int = 1,
     ) -> None:
         self._llm = llm
         self._tools = tools
@@ -66,6 +70,7 @@ class AgentRunner:
         self._allowed = allowed_tools
         self._runs = runs
         self._backend = backend
+        self._grounding_retries = grounding_retries
 
     def _permitted(self, name: str) -> bool:
         if self._allowed is not None and name not in self._allowed:
@@ -114,6 +119,7 @@ class AgentRunner:
             t for t in await self._tools.list_tools() if self._permitted(t.name)
         ]
         messages = [Message("user", goal)]
+        retries_left = self._grounding_retries
 
         for step in range(1, self._max_steps + 1):
             response = await self._llm.complete(
@@ -129,7 +135,20 @@ class AgentRunner:
             if not response.tool_calls:
                 result.answer = response.text
                 result.stop_reason = "answered"
-                return
+                result.grounding = check_grounding(response.text, result.tool_outputs)
+                if result.grounding.ok:
+                    return
+                log.warning(
+                    "agent.ungrounded_answer",
+                    numbers=result.grounding.ungrounded_numbers,
+                    phrases=result.grounding.speculative_phrases,
+                )
+                if retries_left <= 0 or step == self._max_steps:
+                    return
+                retries_left -= 1
+                messages.append(Message("assistant", response.text))
+                messages.append(Message("user", result.grounding.feedback()))
+                continue
 
             messages.append(Message("assistant", response.text, response.tool_calls))
             tool_results = [await self._execute(c, result) for c in response.tool_calls]
@@ -152,6 +171,7 @@ class AgentRunner:
                 text, is_error = f"tool '{call.name}' failed: {exc}", True
         if len(text) > self._max_tool_chars:
             text = text[: self._max_tool_chars] + "\n…[truncated]"
+        result.tool_outputs.append(text)
         log.info("agent.tool_call", tool=call.name, error=is_error, chars=len(text))
         result.tool_trace.append(
             ToolTrace(call.name, call.arguments, is_error, len(text), text[:500])
