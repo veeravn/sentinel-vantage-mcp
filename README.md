@@ -118,6 +118,11 @@ pytest -q                      # unit tests run without a live database
 SV_RUN_DB_TESTS=1 pytest -q     # also run the Postgres/Redis integration tests
 ```
 
+DB tests truncate tables and flush Redis, so they use a separate `sentinel_test` database
+(created automatically) and Redis DB 15 — never your dev data. Override with
+`SV_TEST_POSTGRES_DSN` / `SV_TEST_REDIS_URL`; the DB name must end in `_test` and the Redis
+index must not be 0, or the run aborts.
+
 ## License
 
 Proprietary — all rights reserved. Not licensed for redistribution or use without the
