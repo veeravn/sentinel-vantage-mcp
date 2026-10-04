@@ -145,3 +145,35 @@ async def test_redis_rank_cache_roundtrip():
         assert (await cache.latest("NVDA", "1d")).reasons == ["ABNORMAL_VOLUME"]
     finally:
         await store.close()
+
+
+async def test_agent_run_round_trip(db):
+    from datetime import UTC, datetime
+
+    from sentinel_vantage.agent.runs import AgentRun
+    from sentinel_vantage.storage.agent_repos import PostgresAgentRunRepository
+
+    repo = PostgresAgentRunRepository(db)
+    await db.pool.execute("TRUNCATE agent_run")
+    now = datetime(2026, 5, 1, tzinfo=UTC)
+    run = AgentRun(
+        "r1",
+        "daily_brief",
+        "goal",
+        "anthropic",
+        "m",
+        "answered",
+        "ans",
+        None,
+        2,
+        10,
+        5,
+        now,
+        now,
+        [{"name": "get_status", "is_error": False}],
+    )
+    await repo.save_run(run)
+    await repo.save_run(run)  # idempotent
+    rows = await repo.list_runs(kind="daily_brief")
+    assert rows == [run]
+    assert await repo.list_runs(kind="adhoc") == []

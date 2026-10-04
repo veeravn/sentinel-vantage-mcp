@@ -8,6 +8,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from sentinel_vantage.apps.market_worker.backfill import backfill
+from sentinel_vantage.apps.scheduler.brief_job import run_brief_job
 from sentinel_vantage.apps.scheduler.notify import build_notifier, format_alert_message
 from sentinel_vantage.core.config import get_settings
 from sentinel_vantage.core.logging import configure_logging, get_logger
@@ -86,6 +87,12 @@ async def _run() -> None:
         finally:
             await provider.close()
 
+    async def daily_brief() -> None:
+        try:
+            await run_brief_job(settings, notifier)
+        except Exception as exc:  # noqa: BLE001 - a failed brief must not kill the scheduler
+            log.error("scheduler.brief_failed", error=str(exc))
+
     scheduler = AsyncIOScheduler(timezone="UTC")
     scheduler.add_job(evaluate_alerts, "interval", seconds=settings.alert_interval_seconds)
     if settings.daily_backfill_enabled:
@@ -95,12 +102,21 @@ async def _run() -> None:
             hour=settings.daily_backfill_hour,
             minute=settings.daily_backfill_minute,
         )
+    if settings.daily_brief_enabled:
+        scheduler.add_job(
+            daily_brief,
+            "cron",
+            day_of_week="mon-fri",
+            hour=settings.daily_brief_hour,
+            minute=settings.daily_brief_minute,
+        )
     scheduler.start()
     log.info(
         "scheduler.started",
         alert_interval_s=settings.alert_interval_seconds,
         notify=settings.notify_channel,
         daily_backfill=settings.daily_backfill_enabled,
+        daily_brief=settings.daily_brief_enabled,
     )
 
     stop = asyncio.Event()
