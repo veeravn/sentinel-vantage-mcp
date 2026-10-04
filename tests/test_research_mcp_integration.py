@@ -7,6 +7,8 @@ import os
 from datetime import date
 
 import pytest
+from conftest import TEST_PG_DSN as PG_DSN
+from conftest import TEST_REDIS_URL as REDIS_URL
 from conftest import make_daily_bars
 
 from sentinel_vantage.apps.mcp_server.dependencies import MCPResources
@@ -15,9 +17,6 @@ from sentinel_vantage.core.config import Settings
 from sentinel_vantage.domain.market.universe import seed_universe
 from sentinel_vantage.providers.base import Bar, FundamentalFact
 from sentinel_vantage.storage.migrate import apply_migrations
-
-PG_DSN = os.environ.get("SV_POSTGRES_DSN", "postgresql://sentinel:sentinel@localhost:5432/sentinel")
-REDIS_URL = os.environ.get("SV_REDIS_URL", "redis://localhost:6379/0")
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("SV_RUN_DB_TESTS") != "1", reason="set SV_RUN_DB_TESTS=1 to run DB tests"

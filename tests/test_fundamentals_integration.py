@@ -6,13 +6,12 @@ import os
 from datetime import date
 
 import pytest
+from conftest import TEST_PG_DSN as PG_DSN
 
 from sentinel_vantage.domain.market.universe import seed_universe
 from sentinel_vantage.providers.base import FundamentalFact
 from sentinel_vantage.storage.postgres import Database
 from sentinel_vantage.storage.postgres_repos import PostgresFundamentalRepository
-
-PG_DSN = os.environ.get("SV_POSTGRES_DSN", "postgresql://sentinel:sentinel@localhost:5432/sentinel")
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("SV_RUN_DB_TESTS") != "1", reason="set SV_RUN_DB_TESTS=1 to run DB tests"
