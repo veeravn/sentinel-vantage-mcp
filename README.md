@@ -101,6 +101,8 @@ sv-events               # SEC filings as catalyst events
 | `sv-backfill` / `sv-fundamentals` / `sv-events` | Load bars / fundamentals / filing events. |
 | `sv-backtest` | Point-in-time backtest (`sv-backtest trend`, `sv-backtest garp --horizon 60`). |
 
+| `sv-agent` | Ask the LLM agent a question, or `--brief` for the daily brief. In Docker: `docker compose -f deploy/docker-compose.yml run --rm agent "Analyze NVDA"`. |
+
 ### MCP tools
 
 `get_status`, `scan_trending_stocks`, `analyze_stock`, `get_score_history`,

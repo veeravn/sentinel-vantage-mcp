@@ -103,6 +103,24 @@ services:
     <<: *app
     command: ["sv-scheduler"]
 
+  # One-off agent runs (opt-in: `--profile tools`); arguments go straight to sv-agent:
+  #   docker compose -f deploy/docker-compose.yml run --rm agent "Analyze NVDA"
+  #   docker compose -f deploy/docker-compose.yml run --rm agent --brief
+  # Needs SV_ANTHROPIC_API_KEY (or SV_LLM_BACKEND=openai_compat + SV_LLM_BASE_URL; use
+  # http://host.docker.internal:11434/v1 to reach an Ollama running on the host).
+  agent:
+    <<: *app-base
+    profiles: ["tools"]
+    entrypoint: ["sv-agent"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   # Reverse proxy (opt-in: `--profile edge`). HTTPS on 443 only — port 80 is left to
   # AdGuard on this host. Fronts sentinel-vantage.ai and proxies to the MCP server.
   caddy:
