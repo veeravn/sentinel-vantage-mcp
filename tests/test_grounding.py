@@ -83,3 +83,26 @@ async def test_runner_grounding_retry_disabled():
     llm = ScriptedLLM([_call(), LLMResponse("It is 99.9.")])
     result = await AgentRunner(llm, FakeTools(), grounding_retries=0).run("q")
     assert result.steps == 2 and result.grounding is not None and not result.grounding.ok
+
+
+def test_unsupported_sector_labels_flagged():
+    answer = "Tech and Industrials Lead Strong Trend Day. TSLA scored 89.8."
+    report = check_grounding(answer, [BRIEF, ANALYZE])
+    assert {p.lower() for p in report.speculative_phrases} == {"tech", "industrials"}
+    assert not report.ungrounded_numbers
+
+
+def test_sector_label_allowed_when_a_tool_returned_it():
+    out = BRIEF + ' {"sector": "Technology"}'
+    assert check_grounding("TSLA is in technology at 89.8.", [out, ANALYZE]).ok
+
+
+def test_technical_is_not_flagged_as_tech():
+    assert check_grounding("Technical momentum is strong.", [BRIEF]).ok
+
+
+async def test_goal_supports_numbers_but_not_sector_words():
+    llm = ScriptedLLM([LLMResponse("Sectors rallied; score 82.5."), LLMResponse("Score 82.5.")])
+    result = await AgentRunner(llm, FakeTools()).run("Alert: score=82.5. Do not discuss sectors.")
+    assert result.answer == "Score 82.5." and result.steps == 2
+    assert "Sectors" in llm.seen_messages[1][-2].text

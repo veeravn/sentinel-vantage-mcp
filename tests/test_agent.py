@@ -308,3 +308,25 @@ async def test_brief_job_is_read_only_allowlist():
     from sentinel_vantage.agent.tools import WRITE_TOOLS
 
     assert not BRIEF_TOOLS & WRITE_TOOLS
+
+
+def test_brief_goal_forbids_sector_themes_and_markdown():
+    from sentinel_vantage.agent.brief import BRIEF_GOAL
+
+    assert "sector" in BRIEF_GOAL and "plain text" in BRIEF_GOAL.lower()
+
+
+def test_to_plain_text_strips_markdown():
+    from sentinel_vantage.agent.brief import to_plain_text
+
+    md = "---\n\n## **Daily brief**\n\n- **TSLA** (89.8)\n\n\n\n---\n__note__"
+    assert to_plain_text(md) == "Daily brief\n\n- TSLA (89.8)\n\nnote"
+
+
+async def test_daily_brief_sends_plain_text():
+    from sentinel_vantage.agent.brief import run_daily_brief
+
+    notifier = _Notifier()
+    llm = ScriptedLLM([LLMResponse("## **Daily brief**\n- all quiet")])
+    await run_daily_brief(AgentRunner(llm, FakeTools()), notifier)
+    assert notifier.sent[0][1] == "Daily brief\n- all quiet"

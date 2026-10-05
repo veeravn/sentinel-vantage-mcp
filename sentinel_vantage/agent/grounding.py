@@ -32,6 +32,14 @@ _SPECULATIVE = [
     r"\b(?:buy|sell) (?:signal|recommendation)\b",
 ]
 
+# Sector/theme labels: the tools return no sector data, so these come from model memory.
+_UNSUPPORTED_TERMS = re.compile(
+    r"\b(?:tech|technology|industrials?|semiconductors?|chipmakers?|financials?|healthcare|"
+    r"biotech|utilities|consumer (?:staples|discretionary)|sectors?|mega[- ]?caps?|"
+    r"large[- ]?caps?|growth stocks?|value stocks?)\b",
+    re.I,
+)
+
 
 @dataclass(frozen=True)
 class GroundingReport:
@@ -106,9 +114,12 @@ def _answer_numbers(answer: str) -> list[str]:
     return tokens
 
 
-def check_grounding(answer: str, tool_outputs: Iterable[str]) -> GroundingReport:
+def check_grounding(
+    answer: str, tool_outputs: Iterable[str], *, number_sources: Iterable[str] = ()
+) -> GroundingReport:
+    """``number_sources`` (e.g. the goal text) may support numbers but never phrases."""
     outputs = list(tool_outputs)
-    source = _source_numbers(outputs)
+    source = _source_numbers([*outputs, *number_sources])
     haystack = "\n".join(outputs).lower()
 
     ungrounded: list[str] = []
@@ -122,4 +133,8 @@ def check_grounding(answer: str, tool_outputs: Iterable[str]) -> GroundingReport
         m = re.search(pattern, answer, re.I)
         if m and m.group(0).lower() not in haystack:
             speculative.append(m.group(0))
+    for m in _UNSUPPORTED_TERMS.finditer(answer):
+        term = m.group(0)
+        if term.lower() not in haystack and term.lower() not in {p.lower() for p in speculative}:
+            speculative.append(term)
     return GroundingReport(ungrounded, speculative)
