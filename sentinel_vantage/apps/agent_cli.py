@@ -21,9 +21,13 @@ from sentinel_vantage.storage.agent_repos import PostgresAgentRunRepository
 
 async def _run(args: argparse.Namespace) -> int:
     settings = get_settings()
+    try:
+        llm = build_llm(settings)
+    except LLMError as exc:
+        print(f"error: {exc}")
+        return 1
     resources = MCPResources.build(settings)
     await resources.connect()
-    llm = build_llm(settings)
     try:
         runner = AgentRunner(
             llm,

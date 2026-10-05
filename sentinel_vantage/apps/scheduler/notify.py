@@ -18,14 +18,19 @@ from sentinel_vantage.domain.alerts.models import AlertEvent
 log = get_logger("notify")
 
 
-def format_alert_message(events: Sequence[AlertEvent]) -> tuple[str, str]:
+def format_alert_message(
+    events: Sequence[AlertEvent], notes: dict[str, str] | None = None
+) -> tuple[str, str]:
     subject = f"Sentinel Vantage: {len(events)} alert(s)"
     lines = []
     for e in events:
         metrics = ", ".join(f"{k}={v}" for k, v in sorted(e.metrics.items()))
         line = f"[{e.severity}] {e.symbol} (rule {e.rule_id})"
         lines.append(f"{line} {metrics}".rstrip())
-    return subject, "\n".join(lines)
+    body = "\n".join(lines)
+    if notes:
+        body += "\n\nAgent notes:\n" + "\n".join(f"- {sym}: {note}" for sym, note in notes.items())
+    return subject, body
 
 
 class Notifier(Protocol):

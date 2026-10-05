@@ -135,7 +135,7 @@ class AgentRunner:
             if not response.tool_calls:
                 result.answer = response.text
                 result.stop_reason = "answered"
-                result.grounding = check_grounding(response.text, result.tool_outputs)
+                result.grounding = check_grounding(response.text, [goal, *result.tool_outputs])
                 if result.grounding.ok:
                     return
                 log.warning(
