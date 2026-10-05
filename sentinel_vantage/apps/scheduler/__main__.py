@@ -8,6 +8,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from sentinel_vantage.apps.market_worker.backfill import backfill
+from sentinel_vantage.apps.scheduler.alert_agent_job import investigate_alerts
 from sentinel_vantage.apps.scheduler.brief_job import run_brief_job
 from sentinel_vantage.apps.scheduler.notify import build_notifier, format_alert_message
 from sentinel_vantage.core.config import get_settings
@@ -62,7 +63,16 @@ async def _run() -> None:
             return
         log.info("scheduler.alerts_fired", count=len(fired))
         if notifier is not None:
-            subject, body = format_alert_message(fired)
+            notes: dict[str, str] = {}
+            if settings.agent_alert_investigation_enabled:
+                try:
+                    notes = await asyncio.wait_for(
+                        investigate_alerts(settings, fired),
+                        timeout=settings.agent_alert_timeout_seconds,
+                    )
+                except Exception as exc:  # noqa: BLE001 - send the plain alert if the agent fails
+                    log.error("scheduler.alert_agent_failed", error=repr(exc))
+            subject, body = format_alert_message(fired, notes)
             try:
                 await notifier.send(subject, body)
             except Exception as exc:  # noqa: BLE001 - delivery failure must not lose the alert
@@ -117,6 +127,7 @@ async def _run() -> None:
         notify=settings.notify_channel,
         daily_backfill=settings.daily_backfill_enabled,
         daily_brief=settings.daily_brief_enabled,
+        alert_agent=settings.agent_alert_investigation_enabled,
     )
 
     stop = asyncio.Event()

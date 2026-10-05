@@ -72,6 +72,15 @@ class Settings(BaseSettings):
     agent_max_steps: int = 8
     agent_max_total_tokens: int = 100_000
 
+    # Agent-written alert notes (scheduler process). Off by default; needs an LLM backend.
+    # Only alerts at or above the severity floor are investigated, capped per hour/cycle;
+    # on timeout or failure the plain alert is sent unchanged.
+    agent_alert_investigation_enabled: bool = False
+    agent_alert_min_severity: Literal["info", "warning", "critical"] = "warning"
+    agent_alert_max_per_hour: int = 6
+    agent_alert_max_per_cycle: int = 3
+    agent_alert_timeout_seconds: int = 90
+
     # Agent-written daily brief (scheduler process, Mon-Fri, UTC). Off by default; needs an
     # LLM backend and delivers via SV_NOTIFY_CHANNEL.
     daily_brief_enabled: bool = False
