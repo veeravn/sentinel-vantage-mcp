@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Empty = auth disabled (local dev only); set before exposing on a network.
     mcp_auth_token: str = ""
 
+    # get_status flags market data as stale when the newest bar is older than this many
+    # calendar days (4 tolerates a weekend plus a holiday before the next backfill).
+    data_stale_after_days: int = 4
+
     scoring_interval_seconds: int = 60
     backfill_days: int = 220  # calendar days (~150 trading days)
     trend_horizon: str = "1d"

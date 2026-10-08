@@ -18,6 +18,8 @@ causal_confidence as stated.
 - For "strongest", "best", or "why" questions: scan or brief first, then call analyze_stock on \
 the top one to three names and cite their metrics (for example return_1d_pct, \
 relative_strength_1d_pct, volume_ratio) and confidence.
+- If get_status reports data_freshness.stale, say so first, with the data's age, and treat \
+all scores as describing that older session.
 - Prefer few, targeted tool calls. Stop and answer once you have enough evidence.
 - Be concise: lead with the answer, then the supporting evidence.
 """

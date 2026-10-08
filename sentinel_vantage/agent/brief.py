@@ -15,6 +15,7 @@ BRIEF_KIND = "daily_brief"
 BRIEF_SUBJECT = "Sentinel Vantage: daily brief"
 BRIEF_TOOLS = frozenset(
     {
+        "get_status",
         "get_market_brief",
         "scan_trending_stocks",
         "find_research_candidates",
@@ -25,9 +26,11 @@ BRIEF_TOOLS = frozenset(
     }
 )
 BRIEF_GOAL = (
-    "Write today's market brief for a US-equities research desk. Start with get_market_brief, "
-    "then investigate the one or two most notable names (top trend movers, new alerts, "
-    "watchlist changes) with analyze_stock or explain_move. Keep it under 250 words. "
+    "Write today's market brief for a US-equities research desk. Call get_status first: if "
+    "data_freshness.stale is true, open with a one-line warning giving the data's age. Then "
+    "call get_market_brief and investigate the one or two most notable names (top trend "
+    "movers, new alerts, watchlist changes) with analyze_stock or explain_move. Keep it "
+    "under 250 words. "
     "Start with a neutral title line like 'Daily brief - as of <date>', then one line on "
     "what the data shows, then a short line per name with its score, reason codes, and "
     "confidence. Do not characterize sectors, themes, or groups of stocks (the tools return "

@@ -14,6 +14,7 @@ from sentinel_vantage import __version__
 from sentinel_vantage.apps.mcp_server.dependencies import MCPResources
 from sentinel_vantage.core.config import Settings, get_settings
 from sentinel_vantage.core.envelope import make_envelope
+from sentinel_vantage.core.freshness import assess_freshness
 from sentinel_vantage.core.health import check_health
 from sentinel_vantage.core.timeutils import utcnow
 from sentinel_vantage.core.versioning import (
@@ -74,19 +75,30 @@ def build_server(
             confidence=None,
         ).model_dump(mode="json")
 
+    async def _freshness() -> dict[str, Any]:
+        try:
+            latest = await service.bars.latest_bar_ts()
+        except Exception:  # noqa: BLE001 - status must not fail when the DB is down
+            return {"stale": None, "warning": "Data freshness unavailable (database error)."}
+        return assess_freshness(
+            latest, utcnow(), stale_after_days=settings.data_stale_after_days
+        ).model_dump()
+
     async def _as_of():
         return await service.bars.latest_bar_ts() or utcnow()
 
     @mcp.tool()
     async def get_status() -> dict[str, Any]:
         """Health and readiness of the system: dependency status, environment, active
-        feed, and schema-conventions version."""
+        feed, schema-conventions version, and data freshness (age of the newest daily bar;
+        ``data_freshness.stale`` is true when ingestion appears to have stopped)."""
         db = resources.db if resources else None
         redis = resources.redis if resources else None
         health = await check_health(settings, db=db, redis=redis)
         return _envelope(
             {
                 "health": health.model_dump(),
+                "data_freshness": await _freshness(),
                 "schema_conventions_version": SCHEMA_CONVENTIONS_VERSION,
             },
             model_version=NO_MODEL,

@@ -16,7 +16,9 @@ from sentinel_vantage.domain.alerts.models import AlertEvent
 log = get_logger("alert_investigator")
 
 INVESTIGATION_KIND = "alert_investigation"
-INVESTIGATION_TOOLS = frozenset({"analyze_stock", "explain_move", "get_score_history"})
+INVESTIGATION_TOOLS = frozenset(
+    {"get_status", "analyze_stock", "explain_move", "get_score_history"}
+)
 SEVERITY_RANK = {"info": 0, "warning": 1, "critical": 2}
 
 
@@ -25,8 +27,10 @@ def investigation_goal(event: AlertEvent) -> str:
     return (
         f"Alert fired for {event.symbol} (severity {event.severity}, rule {event.rule_id}). "
         f"Evaluated metrics: {metrics}. Call analyze_stock and explain_move for "
-        f"{event.symbol}, then write a 2-4 sentence note: what the scores and metrics show, "
-        "and any catalyst evidence with its causal_confidence as the tool states it."
+        f"{event.symbol}, and get_status, then write a 2-4 sentence note: what the scores "
+        "and metrics show, and any catalyst evidence with its causal_confidence as the tool "
+        "states it. If data_freshness.stale is true, start the note by saying the data is "
+        "that many days old."
     )
 
 
