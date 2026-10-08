@@ -330,3 +330,11 @@ async def test_daily_brief_sends_plain_text():
     llm = ScriptedLLM([LLMResponse("## **Daily brief**\n- all quiet")])
     await run_daily_brief(AgentRunner(llm, FakeTools()), notifier)
     assert notifier.sent[0][1] == "Daily brief\n- all quiet"
+
+
+def test_brief_and_investigation_can_check_data_freshness():
+    from sentinel_vantage.agent.alert_investigator import INVESTIGATION_TOOLS
+    from sentinel_vantage.agent.brief import BRIEF_GOAL, BRIEF_TOOLS
+
+    assert "get_status" in BRIEF_TOOLS and "get_status" in INVESTIGATION_TOOLS
+    assert "data_freshness.stale" in BRIEF_GOAL
